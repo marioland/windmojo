@@ -1,0 +1,66 @@
+# Windmojo Configuration - Dervio Spot
+# Simplified single-model configuration
+
+# Spot identity
+spot: dervio
+name: "Dervio, Lake Como"
+
+# Location (center point for 9-point circular grid)
+latitude: 46.083333
+longitude: 9.3
+timezone: "Europe/Rome"
+
+# Grid configuration
+grid:
+  radius_km: 20  # 9-point circular grid around center
+
+# Target variable (column names in measurements.csv)
+target:
+  column: "dervio speed"           # Wind speed column
+  direction_column: "dervio direction"  # Optional: wind direction
+
+# Training configuration
+training:
+  model: spatial_heavy_unified     # Model type (Spatial Heavy Unified)
+
+  # Test/validation days selection
+  test_dates:
+    strategy: first_n_days_every_nth_month  # Options: first_n_days_every_nth_month, last_n_days_every_nth_month, custom
+    n_days: 4                      # Number of days per selected month
+    nth_month: 2                   # Every Nth month (2 = Jan, Mar, May, Jul, Sep, Nov)
+    # custom_dates:                # Alternative: specify exact dates
+    #   - "2025-05-01"
+    #   - "2025-05-02"
+
+  # XGBoost model parameters (Spatial Heavy Unified optimized)
+  xgboost:
+    max_depth: 6
+    learning_rate: 0.05
+    n_estimators: 1000
+    min_child_weight: 1
+    subsample: 0.8                 # Row sampling for regularization
+    colsample_bytree: 0.8          # Column sampling
+    reg_alpha: 0.1                 # L1 regularization
+    reg_lambda: 1.0                # L2 regularization
+    objective: 'reg:squarederror'
+    eval_metric: 'mae'
+    random_state: 42
+    tree_method: 'hist'
+    early_stopping_rounds: 50
+
+# Forecasting configuration (for production use)
+forecast:
+  initialization_time: "06:00"     # When forecast is initialized (UTC)
+  horizon_hours: 18                # Forecast up to 18 hours ahead
+  days_ahead: 7                    # Number of days to forecast
+
+# Data paths (relative to spot directory: data/spots/{spot}/)
+# These are defaults and usually don't need to be changed
+paths:
+  measurements: "input/measurements.csv"      # Input: wind measurements
+  config: "input/config.yaml"                 # Input: this config file
+  raw_data: "training/raw"                    # Training: downloaded GFS data
+  features: "training/features"               # Training: engineered features
+  validation: "training/validation"           # Training: validation results
+  model: "models/model.json"                  # Output: trained model
+  metadata: "models/metadata.json"            # Output: model metadata
