@@ -516,6 +516,31 @@ See [LICENSE](LICENSE) file.
 
 ---
 
+## Roadmap
+
+### Near-Term
+- **Phase 3: Forecasting Pipeline** — Daily automated forecast generation
+- **Additional Locations** — Expand beyond Lake Como (Lecco, other lakes, coastal spots)
+- **API Endpoint** — REST API for serving predictions
+
+### Mid-Term
+- **Multi-Location Training** — Share learned patterns across similar locations
+- **Alternative Models** — LightGBM, neural networks for comparison
+- **GUI** — Web interface for non-technical users
+
+### Long-Term: Autonomous Research Loop
+
+Inspired by [karpathy/autoresearch](https://github.com/karpathy/autoresearch) — an autonomous AI agent that modifies code, runs experiments, keeps improvements, and repeats indefinitely. The pattern maps naturally to Windmojo:
+
+- **Agent explores** feature selection from 498 engineered features, XGBoost hyperparameters, new feature combinations, and training data weighting
+- **XGBoost trains in seconds** (vs. 5 minutes for LLMs), enabling 1,000+ experiments overnight
+- **Single metric** (MAE on held-out test weeks) provides clear optimization target
+- **Phase 2 already proved** that feature selection matters more than model complexity (30 features beat 150)
+
+See [research/05_TOOLS_AND_METHODS/AUTORESEARCH.md](research/05_TOOLS_AND_METHODS/AUTORESEARCH.md) for full analysis.
+
+---
+
 ## Version History
 
 - **v0.2.0** (2025-11-27)
