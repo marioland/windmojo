@@ -87,6 +87,10 @@ def train(spot, config):
     click.echo("3. Loading Spatial Heavy feature selection...")
     selected_features = load_feature_selection("spatial_heavy")
     available = set(features.columns)
+    missing = [f for f in selected_features if f not in available]
+    if missing:
+        click.echo(f"   ⚠ {len(missing)} of {len(selected_features)} selected features not in feature file: "
+                   f"{', '.join(missing[:5])}{', ...' if len(missing) > 5 else ''}")
     selected_features = [f for f in selected_features if f in available]
 
     # Add hour features

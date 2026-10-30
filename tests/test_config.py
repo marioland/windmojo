@@ -132,7 +132,7 @@ class TestLoadFeatureSelection:
 
     def test_spatial_heavy_contents(self):
         features = load_feature_selection("spatial_heavy")
-        assert len(features) == 724
+        assert len(features) == 164
         assert len(set(features)) == len(features)
         assert "pressure_msl_grad_n_s" in features
 

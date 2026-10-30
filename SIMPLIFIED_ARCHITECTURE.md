@@ -226,8 +226,10 @@ A **single XGBoost model** trained on all hours with hour encoding, using a care
    - Uses hour encoding: `hour`, `hour_sin`, `hour_cos`
    - No per-hour models needed
 
-2. **Spatial Heavy features**: packaged list of 724 feature names (`windmojo/selections/spatial_heavy.json`);
-   features missing from the spot's feature file are skipped. Selected from:
+2. **Spatial Heavy features**: packaged list of 164 features (`windmojo/selections/spatial_heavy.json`),
+   plus `hour`/`hour_cos` = 166 model inputs. Features missing from the spot's feature file are skipped
+   with a warning. Background: [research/03_FEATURE_ENGINEERING/SPATIAL_HEAVY_SELECTION.md](research/03_FEATURE_ENGINEERING/SPATIAL_HEAVY_SELECTION.md).
+   Selected from:
    - GFS variables at 9-point circular grid
    - Synoptic-scale features (500mb heights, temperature gradients, etc.)
    - Wind shear features

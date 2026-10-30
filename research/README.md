@@ -141,6 +141,14 @@ API documentation and data source evaluation
 
 ## 03 - Feature Engineering
 
+### [SPATIAL_HEAVY_SELECTION.md](03_FEATURE_ENGINEERING/SPATIAL_HEAVY_SELECTION.md)
+
+**Origin and contents of the production feature selection (164 features)**
+
+- Why the original 724-name Phase 2 list reduces to 164 existing features
+- Composition by category
+- Available but unused features (pressure tendency, thickness, lapse rates) as experiment candidates
+
 ### [FEATURE_ENGINEERING_COMPREHENSIVE_DE.md](03_FEATURE_ENGINEERING/FEATURE_ENGINEERING_COMPREHENSIVE_DE.md)
 
 **2000-line comprehensive feature engineering guide (German language) for XGBoost wind prediction**
