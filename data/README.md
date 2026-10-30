@@ -51,9 +51,10 @@ data/spots/[spot]/
 ```
 
 `python cli.py migrate --from-dir data/[area]/[spot] --to-spot [spot]` creates this
-structure and copies `measurements/wind_data.csv` → `input/measurements.csv`, plus the
-raw and feature Parquet files. Create `input/config.yaml` yourself, based on
-`config/examples/dervio.yaml`.
+structure and copies `measurements/wind_data.csv` → `input/measurements.csv`, the raw
+and feature Parquet files, and the legacy config `config/[area]/[spot].yaml` →
+`input/config.yaml`. The copied config is still in the legacy format; convert it to the
+simplified format (see `config/examples/dervio.yaml`).
 
 > **Note:** `cli.py train` still reads the feature selection from the legacy path
 > `data/[area]/[spot]/models/phase2_selections/spatial_heavy.json` (`area` from the
@@ -94,7 +95,7 @@ cp your_wind_data.csv data/your_area/your_spot/measurements/wind_data.csv
 
 # 3. Move to the new layout for training/evaluation
 python cli.py migrate --from-dir data/your_area/your_spot --to-spot your_spot
-cp config/examples/dervio.yaml data/spots/your_spot/input/config.yaml   # then edit
+# then convert data/spots/your_spot/input/config.yaml to the simplified format
 
 # 4. Train and evaluate
 python cli.py train --spot your_spot

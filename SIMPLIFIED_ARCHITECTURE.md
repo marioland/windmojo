@@ -140,8 +140,8 @@ python cli.py migrate \
 - Copies `measurements/wind_data.csv` → `input/measurements.csv`
 - Copies raw data → `training/raw/`
 - Copies features → `training/features/`
-- Tries to copy the config to `input/config.yaml`, but searches in `data/config/lake_como/`, so in practice
-  nothing is copied. Create `input/config.yaml` manually from `config/examples/dervio.yaml`.
+- Copies the legacy config `config/{area}/{spot}.yaml` → `input/config.yaml` (needs manual
+  conversion to the simplified format below; `config/examples/dervio.yaml` is a reference)
 
 ### 2. Training
 

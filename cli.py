@@ -289,11 +289,13 @@ def migrate(from_dir, to_spot):
             shutil.copy(f, to_dir / "training/features" / f.name)
         click.echo(f"✓ Copied features")
 
-    # Copy config (simplified)
-    config_src = list((from_dir.parent.parent / "config/lake_como").glob(f"{to_spot}*.yaml"))
-    if config_src:
-        shutil.copy(config_src[0], to_dir / "input/config.yaml")
+    # Copy config (legacy location: config/{area}/{spot}.yaml)
+    config_src = Path("config") / from_dir.parent.name / f"{from_dir.name}.yaml"
+    if config_src.exists():
+        shutil.copy(config_src, to_dir / "input/config.yaml")
         click.echo(f"✓ Copied config (needs manual simplification)")
+    else:
+        click.echo(f"⚠ No config found at {config_src}, create {to_dir}/input/config.yaml manually")
 
     click.echo(f"\n✓ Migration complete! Data in: {to_dir}")
     click.echo("\nNext steps:")
