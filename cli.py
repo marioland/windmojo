@@ -52,10 +52,9 @@ def features(spot):
 @click.option('--config', '-c', type=click.Path(exists=True), help='Config file (default: data/spots/{spot}/input/config.yaml)')
 def train(spot, config):
     """Train Spatial Heavy Unified model."""
-    from windmojo.config import load_config, get_paths, get_training_config, get_test_dates
+    from windmojo.config import load_config, get_paths, get_training_config, get_test_dates, load_feature_selection
     from windmojo.training import SpatialHeavyTrainer
     import pandas as pd
-    import json
 
     click.echo(f"\n{'='*60}")
     click.echo(f"Training Spatial Heavy Unified Model: {spot}")
@@ -86,12 +85,7 @@ def train(spot, config):
 
     # Load Spatial Heavy selection
     click.echo("3. Loading Spatial Heavy feature selection...")
-    area = cfg.get('area', 'lake_como')
-    selection_file = Path(f"data/{area}/{spot}/models/phase2_selections/spatial_heavy.json")
-    with open(selection_file) as f:
-        selection = json.load(f)
-
-    selected_features = selection['features']
+    selected_features = load_feature_selection("spatial_heavy")
     available = set(features.columns)
     selected_features = [f for f in selected_features if f in available]
 

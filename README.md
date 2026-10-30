@@ -368,8 +368,7 @@ windmojo/
 │   │       ├── features/        # Engineered features (Parquet)
 │   │       └── models/          # Trained models
 │   │           ├── phase1_model1/     # Feature discovery
-│   │           ├── phase2_model2/     # Production models
-│   │           └── phase2_selections/ # Feature selections (read by cli.py train)
+│   │           └── phase2_model2/     # Production models
 │   └── spots/                   # New layout
 │       └── [spot]/
 │           ├── input/           # config.yaml + measurements.csv

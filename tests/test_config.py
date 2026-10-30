@@ -13,6 +13,7 @@ from windmojo.config import (
     get_spot_dir,
     get_test_dates,
     get_training_config,
+    load_feature_selection,
     validate_config,
 )
 
@@ -119,6 +120,25 @@ class TestGetPaths:
         config = make_valid_config(paths={"measurements": "custom/path.csv"})
         paths = get_paths(config)
         assert paths["measurements"] == Path("data/spots/dervio/custom/path.csv")
+
+
+
+class TestLoadFeatureSelection:
+    """Tests for load_feature_selection."""
+
+    def test_spatial_heavy_is_default(self):
+        features = load_feature_selection()
+        assert features == load_feature_selection("spatial_heavy")
+
+    def test_spatial_heavy_contents(self):
+        features = load_feature_selection("spatial_heavy")
+        assert len(features) == 724
+        assert len(set(features)) == len(features)
+        assert "pressure_msl_grad_n_s" in features
+
+    def test_unknown_selection_raises(self):
+        with pytest.raises(ConfigurationError, match="Unknown feature selection"):
+            load_feature_selection("does_not_exist")
 
 
 class TestGetGridConfig:

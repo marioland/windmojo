@@ -10,7 +10,7 @@ currently in use, by different pipeline steps:
 
 | Layout | Used by |
 |--------|---------|
-| `data/[area]/[spot]/` (legacy) | download (`windmojo.data_fetcher`), feature engineering (`windmojo.feature_engineer`), Phase 1/2 training, feature selections |
+| `data/[area]/[spot]/` (legacy) | download (`windmojo.data_fetcher`), feature engineering (`windmojo.feature_engineer`), Phase 1/2 training |
 | `data/spots/[spot]/` (new) | `python cli.py train` and `python cli.py evaluate` |
 
 A new spot therefore starts in the legacy layout and is moved to `spots/` with
@@ -28,9 +28,7 @@ data/
         ├── features/                # Engineered features (auto-created)
         │   └── [spot]_features_phase1.parquet
         ├── forecasts/               # Generated predictions (auto-created)
-        └── models/
-            └── phase2_selections/
-                └── spatial_heavy.json   # Feature selection, read by `cli.py train`
+        └── models/                  # Phase 1/2 models
 ```
 
 ### New layout: `data/spots/[spot]/`
@@ -55,10 +53,6 @@ structure and copies `measurements/wind_data.csv` → `input/measurements.csv`, 
 and feature Parquet files, and the legacy config `config/[area]/[spot].yaml` →
 `input/config.yaml`. The copied config is still in the legacy format; convert it to the
 simplified format (see `config/examples/dervio.yaml`).
-
-> **Note:** `cli.py train` still reads the feature selection from the legacy path
-> `data/[area]/[spot]/models/phase2_selections/spatial_heavy.json` (`area` from the
-> config, default `lake_como`). Keep the legacy directory until this is migrated.
 
 ## Measurement File Format
 
@@ -90,7 +84,7 @@ are dropped in the join; rows with an empty speed value are ignored.
 mkdir -p data/your_area/your_spot/measurements
 cp your_wind_data.csv data/your_area/your_spot/measurements/wind_data.csv
 
-# 2. Run download, feature engineering and feature selection
+# 2. Run download and feature engineering
 #    (see "Run the Pipeline" in the main README)
 
 # 3. Move to the new layout for training/evaluation

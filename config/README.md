@@ -27,9 +27,6 @@ Required fields: `spot`, `latitude`, `longitude`.
 ```yaml
 spot: greifensee
 name: "Greifensee"
-area: "zurich"                     # Still needed: train reads the feature selection
-                                   # from data/{area}/{spot}/models/phase2_selections/
-
 latitude: 47.35
 longitude: 8.68
 timezone: "Europe/Zurich"          # Timestamps in measurements.csv must be in this zone

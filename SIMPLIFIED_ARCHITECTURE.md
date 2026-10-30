@@ -43,10 +43,9 @@ windmojo/
 ```
 
 > **Transitional state:** download and feature engineering are not yet ported (see
-> sections 4 and 5 below). They still write to the legacy `data/{area}/{spot}/` layout,
-> and `train` still reads the feature selection from
-> `data/{area}/{spot}/models/phase2_selections/spatial_heavy.json`. New spots start in
-> the legacy layout and are moved here with `migrate`. See [data/README.md](data/README.md).
+> sections 4 and 5 below). They still write to the legacy `data/{area}/{spot}/` layout.
+> New spots start in the legacy layout and are moved here with `migrate`.
+> See [data/README.md](data/README.md).
 
 ## Measurement Data Format
 
@@ -156,7 +155,7 @@ python cli.py train --spot dervio --config /path/to/config.yaml
 **What it does:**
 1. Loads config and paths
 2. Loads measurements and features
-3. Loads Spatial Heavy feature selection (~166 features)
+3. Loads Spatial Heavy feature selection (`windmojo/selections/spatial_heavy.json`, same for every spot)
 4. Adds hour encoding (hour, hour_sin, hour_cos)
 5. Splits data by test_dates strategy
 6. Trains unified XGBoost model
@@ -227,7 +226,8 @@ A **single XGBoost model** trained on all hours with hour encoding, using a care
    - Uses hour encoding: `hour`, `hour_sin`, `hour_cos`
    - No per-hour models needed
 
-2. **Spatial Heavy features**: ~166 features selected from:
+2. **Spatial Heavy features**: packaged list of 724 feature names (`windmojo/selections/spatial_heavy.json`);
+   features missing from the spot's feature file are skipped. Selected from:
    - GFS variables at 9-point circular grid
    - Synoptic-scale features (500mb heights, temperature gradients, etc.)
    - Wind shear features
@@ -375,12 +375,7 @@ If you have data in the old `data/{area}/{spot}/` structure:
    - Update paths to new structure
    - Simplify training config (remove phase1/phase2)
 
-3. **Copy feature selection**:
-   - Copy Spatial Heavy selection from old location
-   - Place in: `data/lake_como/{spot}/models/phase2_selections/spatial_heavy.json`
-   - (This is temporary - will be moved to new structure)
-
-4. **Train and validate**:
+3. **Train and validate**:
    ```bash
    python cli.py train --spot dervio
    python cli.py evaluate --spot dervio
