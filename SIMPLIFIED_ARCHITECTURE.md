@@ -42,6 +42,28 @@ windmojo/
     └── dervio.yaml
 ```
 
+> **Transitional state:** download and feature engineering are not yet ported (see
+> sections 4 and 5 below). They still write to the legacy `data/{area}/{spot}/` layout,
+> and `train` still reads the feature selection from
+> `data/{area}/{spot}/models/phase2_selections/spatial_heavy.json`. New spots start in
+> the legacy layout and are moved here with `migrate`. See [data/README.md](data/README.md).
+
+## Measurement Data Format
+
+`input/measurements.csv`:
+
+```csv
+timestamp,dervio speed,dervio direction
+2025-05-01_0800,4.2,225
+2025-05-01_0900,5.1,230
+```
+
+- `timestamp`: exact column name, format `YYYY-MM-DD_HHMM`, local time in the config's `timezone`
+- Wind speed column: name set via `target.column`, in m/s
+- Direction column: optional, name set via `target.direction_column`
+
+Measurements are joined to the features on exact timestamp match.
+
 ## Configuration Format
 
 Simplified single-file YAML configuration:
@@ -115,10 +137,11 @@ python cli.py migrate \
 
 **What it does:**
 - Creates new directory structure
-- Copies measurements → `input/measurements.csv`
+- Copies `measurements/wind_data.csv` → `input/measurements.csv`
 - Copies raw data → `training/raw/`
 - Copies features → `training/features/`
-- Copies config → `input/config.yaml` (needs manual simplification)
+- Tries to copy the config to `input/config.yaml`, but searches in `data/config/lake_como/`, so in practice
+  nothing is copied. Create `input/config.yaml` manually from `config/examples/dervio.yaml`.
 
 ### 2. Training
 

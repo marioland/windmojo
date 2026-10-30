@@ -71,13 +71,16 @@ Windmojo learns these location-specific patterns from your historical wind data 
 - Less than 20% missing data
 
 **Data Format:**
-Any tabular format works (CSV, Excel, database export). Example:
+CSV with a `timestamp` column in the format `YYYY-MM-DD_HHMM`, local time of the
+spot's configured `timezone`. Wind speed in m/s; the column name is set in the config.
 
 ```csv
-timestamp,wind_speed,wind_direction
-2024-01-01 00:00:00,5.2,180
-2024-01-01 01:00:00,4.8,175
+timestamp,dervio speed,dervio direction
+2024-01-01_0000,5.2,180
+2024-01-01_0100,4.8,175
 ```
+
+See [data/README.md](data/README.md#measurement-file-format) for details.
 
 ---
 
@@ -212,12 +215,16 @@ Example:
 data/lake_como/dervio/measurements/wind_data.csv
 ```
 
-**CSV Format:**
+**CSV Format** (`timestamp` must be `YYYY-MM-DD_HHMM`, local time):
 ```csv
-timestamp,wind_speed,wind_direction
-2024-01-01 00:00:00,5.2,180
-2024-01-01 01:00:00,4.8,175
+timestamp,dervio speed,dervio direction
+2024-01-01_0000,5.2,180
+2024-01-01_0100,4.8,175
 ```
+
+After download, feature engineering and feature selection, the spot is moved to
+`data/spots/[spot]/` for `python cli.py train` / `evaluate` — see
+[data/README.md](data/README.md).
 
 ### 2. Configure Your Location
 
@@ -342,22 +349,32 @@ Windmojo successfully trained production wind forecasting models for Lecco on La
 
 ## Data & File Structure
 
-Windmojo uses a generic `area/spot` topology to support multiple locations:
+Windmojo is migrating from an `area/spot` layout to a flat `spots/` layout. Download,
+feature engineering and Phase 1/2 training use the legacy layout; `cli.py train` and
+`cli.py evaluate` use the new one (details in [data/README.md](data/README.md)):
 
 ```
 windmojo/
 ├── config/
+│   ├── examples/dervio.yaml     # Example config (simplified format)
 │   └── [area]/
-│       └── [spot].yaml          # Location configuration
+│       └── [spot].yaml          # Legacy location configuration
 ├── data/
-│   └── [area]/
+│   ├── [area]/                  # Legacy layout
+│   │   └── [spot]/
+│   │       ├── measurements/
+│   │       │   └── wind_data.csv   # Your wind measurements
+│   │       ├── raw/             # Downloaded forecast data (Parquet)
+│   │       ├── features/        # Engineered features (Parquet)
+│   │       └── models/          # Trained models
+│   │           ├── phase1_model1/     # Feature discovery
+│   │           ├── phase2_model2/     # Production models
+│   │           └── phase2_selections/ # Feature selections (read by cli.py train)
+│   └── spots/                   # New layout
 │       └── [spot]/
-│           ├── measurements/     # Your wind measurements (CSV)
-│           ├── raw/             # Downloaded forecast data (Parquet)
-│           ├── features/        # Engineered features (Parquet)
-│           └── models/          # Trained models
-│               ├── phase1_model1/  # Feature discovery
-│               └── phase2_model2/  # Production models
+│           ├── input/           # config.yaml + measurements.csv
+│           ├── training/        # raw/, features/, validation/
+│           └── models/          # model.json + metadata.json
 └── windmojo/                    # Source code
     ├── data/                    # Data downloading
     ├── features/                # Feature engineering
