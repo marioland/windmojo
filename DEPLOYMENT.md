@@ -160,9 +160,10 @@ Served this way it offers more than as a static file:
 
 | Element | What it does |
 |---------|--------------|
+| Overview at the top | Time windows of today and the next 2 days with Windmojo mean wind of 10–15 kn (wingfoiling, 8–20 h; also on a static website; range in `SESSION` at the top of the page script), and how much more accurate Windmojo was than Open-Meteo over the past days. |
 | Button "Prognose und Messdaten aktualisieren" | Runs the measurement script of the spot (`measurements.update_script` in the config, e.g. a Datalakes download) and then `predict` (9 Open-Meteo requests, archived as usual). Each source is downloaded at most every 10 minutes; a second click within that time reuses the data. |
 | Measured values | Hours of the forecast that are already measured show the measurement next to the forecast (table column "Gemessen", green line). Gusts and direction need `target.gust_column` and `target.direction_column`. |
-| "Rückblick" | The past 7 days: the forecast as it was shown then (last archived run before the day, from `forecasts/archive/`; fills up with every update), the hindcast (dotted: what the model says for the day with the weather data of that day, from `forecasts/hindcast/`) and the measurement, with the mean deviation of each. Days up to the end of the model's training data are marked: their hindcast looks better than a real forecast. |
+| "Rückblick" | The past 7 days: the forecast as it was shown then (last archived run before the day, from `forecasts/archive/`; fills up with every update), the hindcast (dotted: what the model says for the day with the weather data of that day, from `forecasts/hindcast/`) and the measurement, with the mean deviation of each and how many percent Windmojo is more accurate than Open-Meteo (same hours only). Days up to the end of the model's training data are marked: their hindcast looks better than a real forecast. |
 | CSV downloads | `download/forecast.csv` (current forecast with the measurements so far) and `download/history.csv?days=30` (past days: forecast shown, hindcast and measurement per hour), m/s, local time. |
 
 Spot configuration for the update button:

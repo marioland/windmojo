@@ -51,6 +51,9 @@
   .windmojo .history { margin-top: 28px; }
   .windmojo .history > h2 { font-size: 1.2rem; margin: 0 0 4px; }
   .windmojo .history section { margin-top: 16px; }
+  .windmojo .summary { background: var(--line); padding: 8px 12px; border-radius: 6px; margin: 8px 0 12px; }
+  .windmojo .summary ul { margin: 2px 0 0; padding-left: 18px; }
+  .windmojo .summary .good { color: var(--measured); font-weight: 600; }
   .windmojo .scroll { overflow-x: auto; }
   .windmojo table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
   .windmojo th, .windmojo td { padding: 3px 6px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
@@ -85,6 +88,9 @@
   var root = document.getElementById("windmojo");
   var STALE_HOURS = 12;   // Warn when the forecast is older (not updated?)
   var HISTORY_DAYS = 7;   // Past days shown when served by `cli.py serve`
+  // Overview at the top: hours with Windmojo mean wind in this range (knots), daytime only
+  var SESSION = { name: "Wingfoilen", minKn: 10, maxKn: 15, fromHour: 8, toHour: 20 };
+  var KN = 1.943844;
   var UNITS = {
     "m/s": { factor: 1, digits: 1 },
     "kn": { factor: 1.943844, digits: 0 },
@@ -254,15 +260,27 @@
       "</tr></thead><tbody>" + rows + "</tbody></table></div>";
   }
 
-  // Mean absolute difference to the measurement (hours where both exist)
-  function deviation(hours, key) {
-    var sum = 0, n = 0;
+  function isNum(v) { return v !== null && v !== undefined; }
+
+  // Mean absolute error of a Windmojo forecast and of Open-Meteo against the
+  // measurement, on the same hours (all three present)
+  function compare(hours, key) {
+    var model = 0, om = 0, n = 0;
     hours.forEach(function (h) {
-      if (h[key] !== null && h[key] !== undefined && h.measured_speed !== null && h.measured_speed !== undefined) {
-        sum += Math.abs(h[key] - h.measured_speed); n++;
+      if (isNum(h[key]) && isNum(h.openmeteo_wind_speed) && isNum(h.measured_speed)) {
+        model += Math.abs(h[key] - h.measured_speed);
+        om += Math.abs(h.openmeteo_wind_speed - h.measured_speed);
+        n++;
       }
     });
-    return n ? { mean: sum / n, n: n } : null;
+    return n ? { model: model / n, om: om / n, n: n } : null;
+  }
+
+  // "38 % genauer als Open-Meteo (Ø 0.5 statt 0.8 m/s, 18 h)"
+  function better(c) {
+    var pct = c.om ? Math.round(100 * (1 - c.model / c.om)) : 0;
+    return "<strong>" + Math.abs(pct) + " % " + (pct >= 0 ? "genauer" : "ungenauer") + "</strong> als Open-Meteo (Ø " +
+      fmt(c.model) + " statt " + fmt(c.om) + " " + esc(unit) + ", " + c.n + " h)";
   }
 
   function toolbar() {
@@ -278,24 +296,71 @@
     return html;
   }
 
+  // Accuracy over the past days; hindcasts of days the model was trained on don't count
+  function accuracy(today) {
+    var days = past.filter(function (d) { return d.date < today; });
+    var shown = [], after = [];
+    days.forEach(function (d) {
+      shown = shown.concat(d.hours);
+      if (!d.hindcast_in_training) after = after.concat(d.hours);
+    });
+    var total = compare(shown, "wind_speed"), totalAfter = compare(after, "hindcast_speed");
+    if (!total && !totalAfter) return "";
+    return "<div><strong>Letzte " + days.length + " Tage</strong><ul>" +
+      (total ? "<li>Prognose, wie angezeigt: " + better(total) + "</li>" : "") +
+      (totalAfter ? "<li>Nachträglich mit den Wetterdaten des Tages: " + better(totalAfter) +
+        " – ohne Tage aus dem Training</li>" : "") + "</ul></div>";
+  }
+
+  // Time windows in which the Windmojo mean wind is in the session range, per forecast day
+  function sessions(days, now) {
+    var today = now.slice(0, 10), hourNow = parseInt(now.slice(11, 13), 10);
+    var rows = days.filter(function (d) { return d.date >= today; }).slice(0, 3).map(function (d) {
+      var hours = d.hours.filter(function (h) {
+        var hour = parts(h.time).hour;
+        return hour >= SESSION.fromHour && hour < SESSION.toHour && (d.date > today || hour >= hourNow) &&
+          isNum(h.wind_speed);
+      });
+      if (!hours.length) return null;
+      var windows = [], max = 0;
+      hours.forEach(function (h) {
+        var kn = h.wind_speed * KN, hour = parts(h.time).hour;
+        max = Math.max(max, kn);
+        if (kn < SESSION.minKn || kn > SESSION.maxKn) return;
+        var last = windows[windows.length - 1];
+        if (last && last[1] === hour) last[1] = hour + 1; else windows.push([hour, hour + 1]);
+      });
+      var label = d.date === today ? "Heute" : dayLabel(d.date);
+      var text = windows.length ?
+        '<span class="good">' + windows.map(function (w) { return w[0] + "–" + w[1] + " Uhr"; }).join(", ") +
+          "</span>" :
+        max > SESSION.maxKn ? "zu stark (bis " + Math.round(max) + " kn)" :
+        max >= SESSION.minKn - 1 ? "knapp zu wenig (max " + max.toFixed(1) + " kn)" :
+        "zu wenig Wind (max " + Math.round(max) + " kn)";
+      return "<li>" + label + ": " + text + "</li>";
+    }).filter(Boolean);
+    if (!rows.length) return "";
+    return "<div><strong>" + esc(SESSION.name) + " (" + SESSION.minKn + "–" + SESSION.maxKn + " kn Mittelwind, " +
+      SESSION.fromHour + "–" + SESSION.toHour + " Uhr, laut Windmojo)</strong><ul>" + rows.join("") + "</ul></div>";
+  }
+
   function history(today) {
     var days = past.filter(function (d) { return d.date < today; }).reverse();
     var html = '<div class="history"><h2>Rückblick</h2><div class="meta">Durchgezogen: Prognose, wie sie ' +
       "damals angezeigt wurde (füllt sich mit jeder Aktualisierung). Gepunktet: was das Modell nachträglich " +
       "mit den Wetterdaten des Tages sagt. Grün: Messung.</div>";
     if (!days.length) return html + '<p class="muted">Noch keine vergangenen Tage im Archiv.</p></div>';
+
     days.forEach(function (d) {
-      var model = deviation(d.hours, "wind_speed"), om = deviation(d.hours, "openmeteo_wind_speed");
-      var after = deviation(d.hours, "hindcast_speed");
+      var then = compare(d.hours, "wind_speed"), later = compare(d.hours, "hindcast_speed");
       var info = d.forecast_generated_at ?
         "Prognose vom " + esc(new Date(d.forecast_generated_at).toLocaleString("de-CH", {
           timeZone: data.timezone, weekday: "short", day: "numeric", month: "numeric",
           hour: "2-digit", minute: "2-digit"
         })) : "keine archivierte Prognose";
-      if (model) info += " · Abweichung Windmojo Ø " + fmt(model.mean) + " " + esc(unit) + " (" + model.n + " h)";
-      if (after) info += " · nachträglich Ø " + fmt(after.mean) + " " + esc(unit);
-      if (om) info += " · Open-Meteo Ø " + fmt(om.mean) + " " + esc(unit);
-      if (d.hindcast_in_training) info += " · Tag war im Training des Modells – nachträgliche Werte zu gut";
+      if (then) info += "<br>Damals: " + better(then);
+      if (later) info += "<br>Nachträglich: " + better(later) +
+        (d.hindcast_in_training ? " – Tag war im Training des Modells, deshalb zu gut" : "");
       html += "<section><h3>" + dayLabel(d.date) + '</h3><div class="meta">' + info + "</div>" +
         legend(d.hours) + '<div class="chart">' + chart([d]) + "</div>" +
         "<details><summary>Stundenwerte</summary>" + table(d, "") + "</details></section>";
@@ -318,6 +383,8 @@
       (mae ? " · Modellfehler im Test ±" + fmt(mae) + " " + esc(unit) : "") + "</div>";
 
     if (local) html += toolbar();
+    var overview = sessions(days, now) + (local ? accuracy(now.slice(0, 10)) : "");
+    if (overview) html += '<div class="summary">' + overview + "</div>";
     if (ageHours > STALE_HOURS) {
       html += '<div class="warn">Diese Prognose ist ' + Math.round(ageHours) + " Stunden alt" +
         (local ? " – bitte aktualisieren." : " und wurde nicht aktualisiert.") + "</div>";
