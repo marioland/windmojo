@@ -165,6 +165,10 @@ python cli.py train --spot dervio
 
 # Or with custom config
 python cli.py train --spot dervio --config /path/to/config.yaml
+
+# Train only on data up to a day: later days stay unseen, so the look back of
+# `cli.py serve` can compare honestly on them (stored as training_results.data_until)
+python cli.py train --spot dervio --until 2026-10-27
 ```
 
 **What it does:**

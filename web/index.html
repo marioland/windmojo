@@ -18,7 +18,7 @@
     --warn-bg: #fff4e5; --warn-fg: #8a4b00;
     font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     color: var(--fg); background: var(--bg);
-    max-width: 1000px; margin: 0 auto; padding: 16px;
+    max-width: 1280px; margin: 0 auto; padding: 16px 20px;
   }
   @media (prefers-color-scheme: dark) {
     .windmojo {
@@ -30,28 +30,46 @@
   body { margin: 0; background: #ffffff; }
   @media (prefers-color-scheme: dark) { body { background: #12161c; } }
 
-  /* Header: what the project is about, at a glance */
-  .windmojo .hero { border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px 16px; margin-bottom: 16px; }
-  .windmojo .hero-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
-  .windmojo .hero h1 { font-size: 1.75rem; margin: 0 0 4px; letter-spacing: -.01em; }
+  /* Header: what the project is about, at a glance (made for a landscape screenshot) */
+  .windmojo .hero {
+    border: 1px solid var(--line); border-radius: 16px; padding: 22px 26px 16px; margin-bottom: 18px;
+    background: linear-gradient(180deg, var(--panel) 0, var(--bg) 150px);
+  }
+  .windmojo .hero-top { display: flex; justify-content: space-between; align-items: center; gap: 32px; }
+  .windmojo .brand { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; }
+  .windmojo .brand svg { flex: none; }
+  .windmojo .hero h1 { font-size: 2.1rem; line-height: 1.1; margin: 0; letter-spacing: -.02em; }
   .windmojo .hero h1 span { color: var(--muted); font-weight: 500; }
-  .windmojo .tagline { color: var(--muted); font-size: 1rem; margin: 0; max-width: 640px; }
-  .windmojo .score { text-align: right; flex: none; }
-  .windmojo .score b { display: block; font-size: 2.6rem; line-height: 1; color: var(--model); }
-  .windmojo .score span { display: block; font-size: .9rem; }
-  .windmojo .score small { display: block; color: var(--muted); font-size: .78rem; margin-top: 2px; }
-  .windmojo .hero .chart { margin: 12px 0 10px; }
-  .windmojo .sources { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
-  .windmojo .source { background: var(--panel); border-radius: 8px; padding: 9px 12px 10px; border-top: 4px solid; }
-  .windmojo .source.measured { border-top-color: var(--measured); }
-  .windmojo .source.openmeteo { border-top-color: var(--openmeteo); border-top-style: dashed; }
-  .windmojo .source.model { border-top-color: var(--model); }
-  .windmojo .source h3 { font-size: .98rem; margin: 0 0 2px; }
-  .windmojo .source p { margin: 0; color: var(--muted); font-size: .85rem; }
-  @media (max-width: 700px) {
-    .windmojo .hero-top { flex-direction: column; }
-    .windmojo .score { text-align: left; }
-    .windmojo .sources { grid-template-columns: 1fr; }
+  .windmojo .tagline { color: var(--muted); font-size: 1.08rem; line-height: 1.5; margin: 0; max-width: 660px; }
+  .windmojo .tagline strong { color: var(--fg); font-weight: 600; }
+  .windmojo .score {
+    flex: none; width: 340px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px 16px 10px; box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+  }
+  .windmojo .score-big { display: flex; align-items: center; gap: 12px; }
+  .windmojo .score-big b { font-size: 2.9rem; line-height: 1; color: var(--model); letter-spacing: -.03em; }
+  .windmojo .score-big span { font-size: .95rem; line-height: 1.3; }
+  .windmojo .bars {
+    margin: 10px 0 6px; display: grid; grid-template-columns: auto 1fr auto; gap: 6px 10px;
+    align-items: center; font-size: .82rem;
+  }
+  .windmojo .bars .track { height: 10px; background: var(--shade); border-radius: 5px; overflow: hidden; }
+  .windmojo .bars .track i { display: block; height: 100%; border-radius: 5px; }
+  .windmojo .bars .val { font-variant-numeric: tabular-nums; color: var(--muted); text-align: right; }
+  .windmojo .score small { display: block; color: var(--muted); font-size: .75rem; }
+  .windmojo .hero .chart { margin: 16px 0 12px; }
+  .windmojo .hero .chart svg { min-width: 760px; }
+  .windmojo .sources { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .windmojo .source { background: var(--panel); border-radius: 10px; padding: 10px 14px 12px; }
+  .windmojo .source h3 { display: flex; align-items: center; gap: 8px; font-size: 1rem; margin: 0 0 3px; }
+  .windmojo .source h3 svg { flex: none; }
+  .windmojo .source p { margin: 0; color: var(--muted); font-size: .86rem; line-height: 1.45; }
+  .windmojo .footnote { margin: 12px 2px 0; color: var(--muted); font-size: .76rem; line-height: 1.5; }
+  .windmojo .footnote a { color: inherit; }
+  @media (max-width: 800px) {
+    .windmojo .hero { padding: 16px 16px 12px; }
+    .windmojo .hero-top { flex-direction: column; align-items: stretch; gap: 14px; }
+    .windmojo .score { width: auto; }
   }
 
   .windmojo h2 { font-size: 1.05rem; margin: 0 0 6px; }
@@ -129,11 +147,14 @@
     { key: "hindcast_speed", color: "var(--model)", dash: "2 4", width: 2, label: "Windmojo hindcast (weather data of the day)" },
     { key: "measured_speed", color: "var(--measured)", dash: "", width: 2.2, label: "Measured" }
   ];
-  var HERO_SERIES = [
-    { key: "openmeteo_wind_speed", color: "var(--openmeteo)", dash: "7 5", width: 2.4 },
-    { key: "model", color: "var(--model)", dash: "", width: 3.2 },
-    { key: "measured_speed", color: "var(--measured)", dash: "", width: 3 }
-  ];
+  var HERO = {
+    openmeteo: { key: "openmeteo_wind_speed", color: "var(--openmeteo)", dash: "7 5", width: 2.4, label: "Weather model" },
+    model: { key: "model", color: "var(--model)", dash: "", width: 3.2, label: "Windmojo" },
+    measured: { key: "measured_speed", color: "var(--measured)", dash: "", width: 3, label: "Measured" }
+  };
+  var LOGO = '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--model)" stroke-width="2.2" ' +
+    'stroke-linecap="round" aria-hidden="true"><path d="M3 8.5h10.5a3 3 0 1 0-3-3"/>' +
+    '<path d="M3 12.5h15a3 3 0 1 1-3 3"/><path d="M3 16.5h6.5"/></svg>';
   var WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   var unit = "m/s";
@@ -225,13 +246,9 @@
       }).join("") + "</div>";
   }
 
-  // Line chart over days (nights are not forecast: a gap between days).
-  // options: series, height, nowTime (marks past hours), labels (bigger fonts)
-  function chart(days, options) {
-    options = options || {};
-    var series = options.series || SERIES;
-    var W = 960, H = options.height || 260, L = 34, R = 8, T = options.nowTime ? 26 : 10, B = 34;
-    var font = options.large ? 13 : 11;
+  // Line chart over days (nights are not forecast: a gap between days)
+  function chart(days) {
+    var W = 1240, H = 260, L = 34, R = 8, T = 10, B = 34;
     var n = 0;
     days.forEach(function (d) { n += d.hours.length; });
     if (!n) return "";
@@ -240,7 +257,7 @@
     var max = 0;
     days.forEach(function (d) {
       d.hours.forEach(function (h) {
-        series.forEach(function (s) { max = Math.max(max, h[s.key] || 0); });
+        SERIES.forEach(function (s) { max = Math.max(max, h[s.key] || 0); });
       });
     });
     var u = UNITS[unit];
@@ -250,53 +267,28 @@
     function y(v) { return T + (1 - v * u.factor / top) * (H - T - B); }
 
     var svg = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Wind forecast chart">';
-
-    // Past hours (left of "now") shaded
-    var nowX = null;
-    if (options.nowTime) {
-      var i0 = 0;
-      days.forEach(function (d) {
-        d.hours.forEach(function (h, k) {
-          if (nowX === null && h.time.slice(0, 13) >= options.nowTime.slice(0, 13)) nowX = x(i0 + k) - (W - L - R) / slots / 2;
-        });
-        i0 += d.hours.length + gap;
-      });
-      if (nowX === null) nowX = W - R;
-      if (nowX > L) {
-        svg += '<rect x="' + L + '" y="' + T + '" width="' + (nowX - L) + '" height="' + (H - T - B) + '" fill="var(--shade)"/>';
-        svg += '<text x="' + (L + 6) + '" y="' + (T - 9) + '" font-size="' + font + '" fill="var(--muted)">' +
-          esc(options.pastLabel || "Past") + "</text>";
-      }
-      svg += '<line x1="' + nowX + '" x2="' + nowX + '" y1="' + (T - 4) + '" y2="' + (H - B) +
-        '" stroke="var(--fg)" stroke-width="1.5" stroke-dasharray="3 3"/>';
-      svg += '<text x="' + (nowX + 6) + '" y="' + (T - 9) + '" font-size="' + font + '" font-weight="600" fill="var(--fg)">' +
-        "now → forecast</text>";
-    }
-
     for (var g = 0; g <= top; g += step) {
       svg += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(g / u.factor) + '" y2="' + y(g / u.factor) +
         '" stroke="var(--line)"/>';
       svg += '<text x="' + (L - 6) + '" y="' + (y(g / u.factor) + 4) +
-        '" text-anchor="end" font-size="' + font + '" fill="var(--muted)">' + g + "</text>";
+        '" text-anchor="end" font-size="11" fill="var(--muted)">' + g + "</text>";
     }
-    svg += '<text x="' + (L - 6) + '" y="' + (H - B + 16) + '" text-anchor="end" font-size="' + (font - 1) +
-      '" fill="var(--muted)">' + esc(unit) + "</text>";
 
     var i = 0;
     days.forEach(function (d) {
       var start = i;
-      series.forEach(function (s) {
+      SERIES.forEach(function (s) {
         var pts = [];
         d.hours.forEach(function (h, k) {
           if (isNum(h[s.key])) pts.push(x(start + k).toFixed(1) + "," + y(h[s.key]).toFixed(1));
         });
         if (pts.length) {
-          svg += '<polyline fill="none" stroke="' + s.color + '" stroke-width="' + s.width + '" stroke-linejoin="round"' +
+          svg += '<polyline fill="none" stroke="' + s.color + '" stroke-width="' + s.width + '"' +
             (s.dash ? ' stroke-dasharray="' + s.dash + '"' : "") + ' points="' + pts.join(" ") + '"/>';
         }
       });
       var mid = (x(start) + x(start + d.hours.length - 1)) / 2;
-      svg += '<text x="' + mid + '" y="' + (H - 12) + '" text-anchor="middle" font-size="' + (font + 1) + '" fill="var(--muted)">' +
+      svg += '<text x="' + mid + '" y="' + (H - 12) + '" text-anchor="middle" font-size="12" fill="var(--muted)">' +
         dayLabel(d.date) + "</text>";
       i += d.hours.length + gap;
     });
@@ -373,40 +365,183 @@
     return result;
   }
 
+  function shortDate(date) {
+    return +date.slice(8, 10) + " " + MONTHS[+date.slice(5, 7) - 1];
+  }
+
+  // "28–31 Oct", "30 Oct – 2 Nov" or "31 Oct"
+  function dateRange(first, last) {
+    if (first === last) return shortDate(first);
+    if (first.slice(0, 7) === last.slice(0, 7)) return +first.slice(8, 10) + "–" + shortDate(last);
+    return shortDate(first) + " – " + shortDate(last);
+  }
+
+  function lineSample(s) {
+    return '<svg width="28" height="10" aria-hidden="true"><line x1="2" y1="5" x2="26" y2="5" stroke="' + s.color +
+      '" stroke-width="3.2" stroke-linecap="round"' + (s.dash ? ' stroke-dasharray="5 5"' : "") + "/></svg>";
+  }
+
+  // Header chart: lines labelled directly, past region shaded, hour ticks per day
+  function heroChart(days, now, caption) {
+    var W = 1240, H = 360, L = 44, R = 124, T = 58, B = 50;
+    var series = [HERO.openmeteo, HERO.model, HERO.measured];
+    var gap = 3, n = 0, max = 0;
+    days.forEach(function (d) {
+      n += d.hours.length;
+      d.hours.forEach(function (h) { series.forEach(function (s) { max = Math.max(max, h[s.key] || 0); }); });
+    });
+    if (!n) return "";
+    var slots = n + gap * (days.length - 1), cw = (W - L - R) / slots;
+    var u = UNITS[unit];
+    var top = Math.max(4, Math.ceil(max * u.factor / 2) * 2 + (unit === "m/s" ? 0 : 2));
+    var step = top <= 12 ? 2 : top <= 30 ? 5 : 10;
+    function x(i) { return L + (i + 0.5) * cw; }
+    function y(v) { return T + (1 - v * u.factor / top) * (H - T - B); }
+    function text(tx, ty, str, attrs) {
+      return '<text x="' + tx.toFixed(1) + '" y="' + ty.toFixed(1) + '" ' + attrs + ">" + str + "</text>";
+    }
+
+    var points = [], i = 0, nowX = null;
+    days.forEach(function (d) {
+      d.hours.forEach(function (h, k) {
+        points.push({ h: h, x: x(i + k) });
+        if (nowX === null && h.time.slice(0, 13) >= now.slice(0, 13)) nowX = x(i + k) - cw / 2;
+      });
+      d.mid = (x(i) + x(i + d.hours.length - 1)) / 2;
+      i += d.hours.length + gap;
+    });
+    if (nowX === null) nowX = W - R;
+
+    var svg = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Measured wind, weather model and Windmojo forecast">';
+    var caps = 'font-size="11.5" font-weight="600" letter-spacing=".08em" fill="var(--muted)"';
+    if (nowX > L) {
+      svg += '<rect x="' + L + '" y="' + T + '" width="' + (nowX - L).toFixed(1) + '" height="' + (H - T - B) +
+        '" rx="6" fill="var(--shade)"/>';
+      svg += text(L + 10, 16, esc(caption.toUpperCase()), caps);
+    }
+    if (nowX < W - R - 60) svg += text(nowX + 26, 16, "FORECAST", caps);
+
+    for (var g = 0; g <= top; g += step) {
+      var gy = y(g / u.factor);
+      svg += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + gy + '" y2="' + gy + '" stroke="var(--line)"/>';
+      svg += text(L - 8, gy + 4, g, 'text-anchor="end" font-size="12" fill="var(--muted)"');
+    }
+    svg += text(L - 8, T - 14, esc(unit), 'text-anchor="end" font-size="12" fill="var(--muted)"');
+
+    // "now": dashed line with a small label
+    svg += '<line x1="' + nowX.toFixed(1) + '" x2="' + nowX.toFixed(1) + '" y1="' + (T - 10) + '" y2="' + (H - B) +
+      '" stroke="var(--fg)" stroke-width="1.4" stroke-dasharray="3 3"/>';
+    svg += '<rect x="' + (nowX - 19).toFixed(1) + '" y="' + (T - 28) + '" width="38" height="18" rx="9" fill="var(--fg)"/>';
+    svg += text(nowX, T - 15, "now", 'text-anchor="middle" font-size="11.5" font-weight="600" fill="var(--bg)"');
+
+    // Lines, day by day (nights are not forecast)
+    var start = 0;
+    days.forEach(function (d) {
+      series.forEach(function (s) {
+        var pts = [];
+        d.hours.forEach(function (h, k) {
+          if (isNum(h[s.key])) pts.push(x(start + k).toFixed(1) + "," + y(h[s.key]).toFixed(1));
+        });
+        if (pts.length) {
+          svg += '<polyline fill="none" stroke="' + s.color + '" stroke-width="' + s.width +
+            '" stroke-linejoin="round" stroke-linecap="round"' + (s.dash ? ' stroke-dasharray="' + s.dash + '"' : "") +
+            ' points="' + pts.join(" ") + '"/>';
+        }
+      });
+      d.hours.forEach(function (h, k) {
+        var hour = parts(h.time).hour;
+        if (hour % 6) return;
+        var tx = x(start + k);
+        svg += '<line x1="' + tx.toFixed(1) + '" x2="' + tx.toFixed(1) + '" y1="' + (H - B) + '" y2="' + (H - B + 4) +
+          '" stroke="var(--muted)"/>';
+        svg += text(tx, H - B + 16, String(hour).padStart(2, "0"), 'text-anchor="middle" font-size="10.5" fill="var(--muted)"');
+      });
+      svg += text(d.mid, H - 8, dayLabel(d.date), 'text-anchor="middle" font-size="13.5" font-weight="600" fill="var(--fg)"');
+      start += d.hours.length + gap;
+    });
+
+    // Direct labels: the forecasts at their right end, the measurement above its highest point
+    var labels = [];
+    [HERO.openmeteo, HERO.model].forEach(function (s) {
+      var last = null;
+      points.forEach(function (p) { if (isNum(p.h[s.key])) last = p; });
+      if (last) labels.push({ s: s, x: last.x, y: y(last.h[s.key]), ly: y(last.h[s.key]) + 4 });
+    });
+    labels.sort(function (a, b) { return a.ly - b.ly; });
+    if (labels.length === 2 && labels[1].ly - labels[0].ly < 17) {
+      var midY = (labels[0].ly + labels[1].ly) / 2;
+      labels[0].ly = midY - 8.5; labels[1].ly = midY + 8.5;
+    }
+    labels.forEach(function (l) {
+      svg += '<circle cx="' + l.x.toFixed(1) + '" cy="' + l.y.toFixed(1) + '" r="3.5" fill="' + l.s.color + '"/>';
+      svg += text(l.x + 9, l.ly, l.s.label, 'font-size="13" font-weight="700" fill="' + l.s.color + '"');
+    });
+    var peak = null;
+    points.forEach(function (p) {
+      if (isNum(p.h.measured_speed) && (!peak || p.h.measured_speed > peak.h.measured_speed)) peak = p;
+    });
+    if (peak) {
+      svg += text(peak.x, Math.max(T + 12, y(peak.h.measured_speed) - 10), HERO.measured.label,
+        'text-anchor="middle" font-size="13" font-weight="700" fill="' + HERO.measured.color + '"');
+    }
+    return svg + "</svg>";
+  }
+
+  function errorBar(name, value, worst, color) {
+    return "<span>" + name + '</span><span class="track"><i style="width:' + Math.round(100 * value / worst) +
+      "%;background:" + color + '"></i></span><span class="val">' + fmt(value) + " " + esc(unit) + "</span>";
+  }
+
+  function source(cls, s, title, textHtml) {
+    return '<div class="source ' + cls + '"><h3>' + lineSample(s) + title + "</h3><p>" + textHtml + "</p></div>";
+  }
+
   function hero(days, now) {
-    var hdays = heroDays(days, now.slice(0, 10));
+    var today = now.slice(0, 10);
+    var hdays = heroDays(days, today);
     var measured = [];
     hdays.forEach(function (d) {
-      d.hours.forEach(function (h) { if (h.time.slice(0, 13) < now.slice(0, 13)) measured.push(h); });
+      d.hours.forEach(function (h) {
+        if (h.time.slice(0, 13) < now.slice(0, 13) && isNum(h.measured_speed)) measured.push(h);
+      });
     });
     var score = compare(measured, "model");
-    var pastDays = {};
-    measured.forEach(function (h) { if (isNum(h.measured_speed)) pastDays[h.time.slice(0, 10)] = true; });
+    var pastDays = hdays.filter(function (d) { return d.date < today; }).length;
+    var caption = !measured.length ? "Earlier today" :
+      (pastDays ? "Past " + pastDays + " day" + (pastDays > 1 ? "s" : "") : "Earlier today") + " · forecast vs. measured";
 
     var html = '<header class="hero"><div class="hero-top"><div>' +
-      "<h1>Windmojo <span>· " + esc(data.name) + "</span></h1>" +
-      '<p class="tagline">Weather models forecast the wind for a whole region. Windmojo learns from years of ' +
-      "measurements at one spot and turns the regional forecast into a forecast for exactly this spot.</p></div>";
+      '<div class="brand">' + LOGO + "<h1>Windmojo <span>· " + esc(data.name) + "</span></h1></div>" +
+      '<p class="tagline">Weather models forecast the wind for a whole region. <strong>Windmojo learns from ' +
+      "years of measurements at one spot</strong> and turns the regional forecast into a forecast for exactly " +
+      "this spot.</p></div>";
     if (score && score.n >= 6) {
-      html += '<div class="score"><b>' + Math.abs(score.pct) + " %</b><span>" +
-        (score.pct >= 0 ? "more" : "less") + " accurate than the weather model</span><small>last " +
-        Object.keys(pastDays).length + " days · " + score.n + " measured hours · mean error " + fmt(score.model) +
-        " vs. " + fmt(score.om) + " " + esc(unit) + "</small></div>";
+      var worst = Math.max(score.om, score.model);
+      var first = measured[0].time.slice(0, 10), last = measured[measured.length - 1].time.slice(0, 10);
+      html += '<div class="score"><div class="score-big"><b>' + Math.abs(score.pct) + " %</b><span>" +
+        (score.pct >= 0 ? "smaller" : "larger") + " error than<br>the weather model</span></div>" +
+        '<div class="bars">' + errorBar("Weather model", score.om, worst, "var(--openmeteo)") +
+        errorBar("Windmojo", score.model, worst, "var(--model)") + "</div>" +
+        "<small>Mean error over " + score.n + " measured hours, " + dateRange(first, last) +
+        "</small></div>";
     }
-    html += "</div>" + '<div class="chart">' +
-      chart(hdays, {
-        series: HERO_SERIES, height: 300, nowTime: now, large: true,
-        pastLabel: score ? "Past days: forecast vs. measured" : "Past hours"
-      }) + "</div>" +
+    html += "</div>" + '<div class="chart">' + heroChart(hdays, now, caption) + "</div>" +
       '<div class="sources">' +
-      (measured.some(function (h) { return isNum(h.measured_speed); }) ?
-        '<div class="source measured"><h3>Measured</h3><p>Wind measured at the spot – the truth both forecasts ' +
-        "are judged by.</p></div>" : "") +
-      '<div class="source openmeteo"><h3>Weather model</h3><p>Open-Meteo forecast for the area around the spot (10 m wind). ' +
-      "A coarse grid that knows nothing about the lake.</p></div>" +
-      '<div class="source model"><h3>Windmojo</h3><p>Forecast for this spot: a model trained on years of local ' +
-      "measurements corrects the weather model.</p></div>" +
-      "</div></header>";
+      (measured.length ? source("measured", HERO.measured, "Measured",
+        "Wind measured at the spot – the truth both forecasts are judged by.") : "") +
+      source("openmeteo", HERO.openmeteo, "Weather model",
+        "Regional forecast from Open-Meteo<sup>1</sup> for the area around the spot (10 m wind). It knows " +
+        "nothing about the local effects of lake and terrain.") +
+      source("model", HERO.model, "Windmojo",
+        "Forecast for exactly this spot: machine learning, trained on years of local measurements, corrects " +
+        "the weather model.") +
+      "</div>" +
+      '<p class="footnote"><sup>1</sup> <a href="https://open-meteo.com/" rel="noopener">Open-Meteo.com</a> is an ' +
+      "open weather API that serves the forecast models of national weather services – among them GFS, the " +
+      "global model of the US weather service NOAA, and ICON of the German weather service DWD. Windmojo uses " +
+      "Open-Meteo’s “best match” blend at 9 grid points around the spot." +
+      (pastDays ? " Past days show the forecast as shown then or, before the forecast archive started, a " +
+        "hindcast by a model that had not seen these days." : "") + "</p></header>";
     return html;
   }
 

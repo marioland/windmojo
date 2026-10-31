@@ -50,7 +50,9 @@ def features(spot):
 @cli.command()
 @click.option('--spot', required=True, help='Spot name')
 @click.option('--config', '-c', type=click.Path(exists=True), help='Config file (default: data/spots/{spot}/input/config.yaml)')
-def train(spot, config):
+@click.option('--until', type=click.DateTime(formats=['%Y-%m-%d']),
+              help='Train only on data up to this day (later days stay unseen, e.g. for comparisons)')
+def train(spot, config, until):
     """Train the unified model on all features."""
     from windmojo.config import (load_config, get_paths, get_training_config, get_test_dates,
                                  get_validation_dates)
@@ -101,6 +103,9 @@ def train(spot, config):
         on='time',
         how='inner'
     ).dropna(subset=[target_col])
+    if until:
+        merged = merged[merged['date'] <= until.date()]
+        click.echo(f"   Using data up to {until:%Y-%m-%d}")
 
     # Split train/validation/test
     all_dates = sorted(merged['date'].unique())
