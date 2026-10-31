@@ -15,6 +15,7 @@ from windmojo.data.grid_downloader import (
 from windmojo.prediction import forecast as forecast_module
 from windmojo.prediction.forecast import (
     apply_forecast_window,
+    archive_forecast,
     download_forecast,
     forecast_to_dict,
     save_forecast_json,
@@ -185,6 +186,24 @@ class TestSaveForecastJson:
         assert list(output.parent.iterdir()) == [output]
 
 
+class TestArchiveForecast:
+    """Tests for archive_forecast."""
+
+    def test_one_file_per_run_in_month_folder(self, tmp_path):
+        data = {
+            "spot": "greifensee",
+            "generated_at": "2026-10-31T17:15:04+01:00",
+            "hours": [],
+        }
+        path = archive_forecast(data, tmp_path / "archive")
+        assert path == tmp_path / "archive" / "2026-10" / "2026-10-31T1715.json"
+        assert json.loads(path.read_text()) == data
+
+        later = {**data, "generated_at": "2026-10-31T23:15:02+01:00"}
+        archive_forecast(later, tmp_path / "archive")
+        assert len(list((tmp_path / "archive" / "2026-10").iterdir())) == 2
+
+
 class TestTrainerMedians:
     """predict() fills missing values with the training medians."""
 
@@ -203,6 +222,11 @@ class TestTrainerMedians:
         loaded = UnifiedTrainer({})
         loaded.load(tmp_path / "model.json", tmp_path / "metadata.json")
 
+        # Written under temporary names and renamed: no leftovers
+        assert sorted(p.name for p in tmp_path.iterdir()) == [
+            "metadata.json",
+            "model.json",
+        ]
         pd.testing.assert_series_equal(
             loaded.feature_medians, trainer.feature_medians, check_names=False
         )

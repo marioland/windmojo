@@ -118,6 +118,7 @@ python cli.py predict --spot greifensee --output ~/public_html/wind/greifensee.j
 | `--config`, `-c` | `data/spots/<spot>/input/config.yaml` | Spot configuration |
 | `--output`, `-o` | `data/spots/<spot>/forecasts/forecast.json` (`paths.forecast` in the config) | JSON output file |
 | `--history-days` | 7 | Past days downloaded for lag and rolling features (the longest model feature is a 7-day precipitation sum) |
+| `--archive/--no-archive` | archive | Keep a copy of each forecast in `data/spots/<spot>/forecasts/archive/<YYYY-MM>/<time>.json` (`paths.forecast_archive`) for later verification against measurements |
 
 What it does (`windmojo/prediction/forecast.py`):
 
@@ -126,12 +127,12 @@ What it does (`windmojo/prediction/forecast.py`):
    run). The forecast API also serves the past days needed for lag features; for
    recent days its values are identical to the historical data used in training.
 2. Keeps the hours of the forecast window (`initialization_time` + `horizon_hours`).
-3. Runs the feature pipeline. Unlike training, **outlier capping is skipped**: it clips
-   at percentiles of the data passed in, which for a single forecast week would cut
-   off exactly the strong-wind hours.
+3. Runs the same feature pipeline as training. No feature looks back more than 7 days
+   and none uses statistics over the whole input, so live features equal training
+   features.
 4. Predicts with the model; missing values are filled with the training medians.
 5. Writes the JSON to a temporary file and renames it, so the web server never serves
-   a half-written file.
+   a half-written file, and keeps a copy in the forecast archive.
 
 Resource use (measured for Greifensee, 7 forecast days): ~6 s runtime, ~210 MB RAM,
 9 requests to Open-Meteo.
@@ -435,7 +436,8 @@ requests with many variables as several calls, a run counts as roughly 16 API ca
 | Deploy a retrained model | Replace `models/model.json` and `models/metadata.json` (A/C: copy to the host; B: commit). The next run uses it. |
 | Update code | A/C: `git pull` in the checkout (+ `pip install -e .` if dependencies changed). B: automatic (workflow uses the repository state). After feature pipeline changes: retrain first (see [2.3](#2-prerequisites)). |
 | Add a second spot | Second `data/spots/<spot>/`, second cron line or second workflow job with its own `FORECAST_SPOT`; the page can be copied with a different `data-src`. |
-| Check plausibility | Compare `wind_speed` with `openmeteo_wind_speed` in the JSON; large systematic differences on many days indicate a problem (e.g. config/model mismatch). Long-term: compare forecasts with new measurements and retrain periodically. |
+| Check plausibility | Compare `wind_speed` with `openmeteo_wind_speed` in the JSON; large systematic differences on many days indicate a problem (e.g. config/model mismatch). Long-term: compare the archived forecasts (`forecasts/archive/`) with new measurements per lead time and retrain periodically. |
+| Retrain while forecasts run | Safe: `train` writes the model under temporary names and renames both files at the end. |
 
 ## 12. Licensing and data protection
 

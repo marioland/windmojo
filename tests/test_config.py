@@ -111,6 +111,7 @@ class TestGetPaths:
             "model",
             "metadata",
             "forecast",
+            "forecast_archive",
         }
         assert set(paths.keys()) == expected_keys
 

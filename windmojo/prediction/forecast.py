@@ -247,3 +247,28 @@ def save_forecast_json(data: Dict[str, Any], output_path: Path) -> None:
     with open(tmp_path, "w") as f:
         json.dump(data, f, indent=1, ensure_ascii=False)
     tmp_path.replace(output_path)
+
+
+def archive_forecast(data: Dict[str, Any], archive_dir: Path) -> Path:
+    """
+    Keep a copy of a forecast for later verification against measurements.
+
+    One file per run, named after its creation time, in a folder per month
+    (e.g. archive/2026-10/2026-10-31T1715.json). Comparing archived forecasts
+    with the measurements shows the real accuracy per lead time.
+
+    Args:
+        data: Output of forecast_to_dict()
+        archive_dir: Archive root directory
+
+    Returns:
+        Path of the archived file
+    """
+    generated_at = datetime.fromisoformat(data["generated_at"])
+    path = (
+        Path(archive_dir)
+        / f"{generated_at:%Y-%m}"
+        / f"{generated_at:%Y-%m-%dT%H%M}.json"
+    )
+    save_forecast_json(data, path)
+    return path

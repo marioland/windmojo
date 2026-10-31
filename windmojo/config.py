@@ -146,6 +146,7 @@ def get_paths(config: Dict[str, Any]) -> Dict[str, Path]:
         "model": "models/model.json",
         "metadata": "models/metadata.json",
         "forecast": "forecasts/forecast.json",
+        "forecast_archive": "forecasts/archive",
     }
 
     # Override with custom paths from config if present

@@ -200,10 +200,13 @@ class UnifiedTrainer:
         if self.model is None:
             raise ValueError("Model not trained. Call train() first.")
 
-        # Save model
+        # Write both files under temporary names first and rename them at the
+        # end, so a forecast running meanwhile never loads a half-written model
+        model_path, metadata_path = Path(model_path), Path(metadata_path)
         model_path.parent.mkdir(parents=True, exist_ok=True)
-        self.model.save_model(str(model_path))
-        logger.info(f"Model saved to: {model_path}")
+        tmp_model = model_path.with_name(f"{model_path.stem}.tmp{model_path.suffix}")
+        tmp_metadata = metadata_path.with_name(f"{metadata_path.name}.tmp")
+        self.model.save_model(str(tmp_model))
 
         # Save metadata
         metadata = {
@@ -218,8 +221,12 @@ class UnifiedTrainer:
             "time_tolerance": self.time_tolerance,
         }
 
-        with open(metadata_path, "w") as f:
+        with open(tmp_metadata, "w") as f:
             json.dump(metadata, f, indent=2)
+
+        tmp_model.replace(model_path)
+        tmp_metadata.replace(metadata_path)
+        logger.info(f"Model saved to: {model_path}")
         logger.info(f"Metadata saved to: {metadata_path}")
 
     def load(self, model_path: Path, metadata_path: Path):

@@ -251,11 +251,13 @@ def evaluate(spot, config):
 @click.option('--config', '-c', type=click.Path(exists=True), help='Config file (default: data/spots/{spot}/input/config.yaml)')
 @click.option('--output', '-o', type=click.Path(), help='JSON output file (default: data/spots/{spot}/forecasts/forecast.json)')
 @click.option('--history-days', default=7, show_default=True, help='Past days downloaded for lag and rolling features')
-def predict(spot, config, output, history_days):
+@click.option('--archive/--no-archive', default=True, show_default=True,
+              help='Keep a copy in the forecast archive (paths.forecast_archive) for later verification')
+def predict(spot, config, output, history_days, archive):
     """Create a live forecast and export it as JSON (see DEPLOYMENT.md)."""
     from windmojo.config import load_config, get_paths
     from windmojo.training import UnifiedTrainer
-    from windmojo.prediction import predict_forecast, forecast_to_dict, save_forecast_json
+    from windmojo.prediction import predict_forecast, forecast_to_dict, save_forecast_json, archive_forecast
     import warnings
     import pandas as pd
 
@@ -287,7 +289,10 @@ def predict(spot, config, output, history_days):
 
     # Export
     click.echo("3. Writing JSON...")
-    save_forecast_json(forecast_to_dict(result, cfg, trainer), output)
+    data = forecast_to_dict(result, cfg, trainer)
+    save_forecast_json(data, output)
+    if archive:
+        click.echo(f"   Archived: {archive_forecast(data, paths['forecast_archive'])}")
 
     click.echo(f"\n✓ {len(result)} hours ({result['time'].min():%Y-%m-%d %H:%M} to "
                f"{result['time'].max():%Y-%m-%d %H:%M}) written to {output}")
