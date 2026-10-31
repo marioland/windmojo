@@ -35,7 +35,7 @@ times per day and writes a small static JSON file; the website only displays tha
 ```
  Scheduled job (cron / GitHub Actions / systemd timer), every 6 hours
  ┌──────────────────────────────────────────────────────────────────────┐
- │ python cli.py predict --spot greifensee --output .../greifensee.json │
+ │ python cli.py predict --spot myspot --output .../myspot.json         │
  │   1. download Open-Meteo forecast for the 9-point grid               │
  │      (7 past days for lag/rolling features + 7 forecast days)        │
  │   2. same feature pipeline as for the training data                  │
@@ -44,7 +44,7 @@ times per day and writes a small static JSON file; the website only displays tha
  └──────────────────────────────┬───────────────────────────────────────┘
                                 │ file on the web space (directly or via SFTP)
                                 ▼
- Web host:  /wind/greifensee.json  +  /wind/index.html (web/index.html)
+ Web host:  /wind/myspot.json  +  /wind/index.html (web/index.html)
                                 │
                                 ▼
  Visitor's browser: loads the page, which loads the JSON (same domain)
@@ -108,8 +108,8 @@ but the ~380 features would have to be reimplemented outside Python — not wort
 ## 3. The `predict` command
 
 ```bash
-python cli.py predict --spot greifensee
-python cli.py predict --spot greifensee --output ~/public_html/wind/greifensee.json
+python cli.py predict --spot myspot
+python cli.py predict --spot myspot --output ~/public_html/wind/myspot.json
 ```
 
 | Option | Default | Description |
@@ -134,7 +134,7 @@ What it does (`windmojo/prediction/forecast.py`):
 5. Writes the JSON to a temporary file and renames it, so the web server never serves
    a half-written file, and keeps a copy in the forecast archive.
 
-Resource use (measured for Greifensee, 7 forecast days): ~6 s runtime, ~210 MB RAM,
+Resource use (measured for one spot, 7 forecast days): ~6 s runtime, ~210 MB RAM,
 9 requests to Open-Meteo.
 The Python environment with all dependencies needs roughly 0.7–1 GB of disk space.
 
@@ -197,10 +197,10 @@ creates a new forecast. For the hindcast, `predict` downloads `hindcast_days` mo
 
 ```json
 {
-  "spot": "greifensee",
-  "name": "Greifensee",
-  "latitude": 47.366,
-  "longitude": 8.665,
+  "spot": "myspot",
+  "name": "My Spot",
+  "latitude": 47.0,
+  "longitude": 8.5,
   "timezone": "Europe/Zurich",
   "generated_at": "2026-10-31T10:10:05+01:00",
   "units": {"wind_speed": "m/s", "wind_direction": "deg"},
@@ -270,10 +270,10 @@ the page go into it.
 
 ```
 ~/windmojo/                     # repository checkout (not publicly reachable)
-│   └── data/spots/greifensee/input/config.yaml, models/
+│   └── data/spots/myspot/input/config.yaml, models/
 ~/public_html/wind/             # web root of your domain (name depends on the host)
     ├── index.html              # copy of web/index.html
-    └── greifensee.json         # written by the cron job
+    └── myspot.json             # written by the cron job
 ```
 
 ```bash
@@ -285,14 +285,14 @@ python3 -m venv .venv
 .venv/bin/pip install -e .
 
 # Copy config + model from your training machine, e.g.:
-#   scp -r data/spots/greifensee/input data/spots/greifensee/models \
-#       user@host:windmojo/data/spots/greifensee/
+#   scp -r data/spots/myspot/input data/spots/myspot/models \
+#       user@host:windmojo/data/spots/myspot/
 
 # Optional (commercial use): Open-Meteo API key
 echo 'OPEN_METEO_API_KEY=...' > .env && chmod 600 .env
 
 # Test run
-.venv/bin/python cli.py predict --spot greifensee --output ~/public_html/wind/greifensee.json
+.venv/bin/python cli.py predict --spot myspot --output ~/public_html/wind/myspot.json
 ```
 
 If `pip install` fails for `xgboost` or `pyarrow` (no prebuilt wheel for the host's
@@ -304,7 +304,7 @@ platform, compiler missing, old glibc), the plan is not suitable: use variant B.
 
 ```cron
 # Windmojo forecast, local server time; shortly after new weather model runs
-15 0,6,12,18 * * *  cd $HOME/windmojo && .venv/bin/python cli.py predict --spot greifensee --output $HOME/public_html/wind/greifensee.json >> $HOME/windmojo/forecast.log 2>&1
+15 0,6,12,18 * * *  cd $HOME/windmojo && .venv/bin/python cli.py predict --spot myspot --output $HOME/public_html/wind/myspot.json >> $HOME/windmojo/forecast.log 2>&1
 ```
 
 - The `cd` matters: `cli.py` finds `data/spots/...` and `.env` relative to the checkout.
@@ -328,10 +328,10 @@ The workflow checks out the repository, so `config.yaml` and the model must be
 committed. `data/` is ignored by git, so add them explicitly:
 
 ```bash
-git add -f data/spots/greifensee/input/config.yaml \
-           data/spots/greifensee/models/model.json \
-           data/spots/greifensee/models/metadata.json
-git commit -m "Add Greifensee model for forecast deployment"
+git add -f data/spots/myspot/input/config.yaml \
+           data/spots/myspot/models/model.json \
+           data/spots/myspot/models/metadata.json
+git commit -m "Add myspot model for forecast deployment"
 ```
 
 Neither file contains measurement data (`model.json` ~1–2 MB, `metadata.json` holds
@@ -361,7 +361,7 @@ GitHub → repository → *Settings → Secrets and variables → Actions*:
 
 | Type | Name | Example | Required |
 |------|------|---------|----------|
-| Variable | `FORECAST_SPOT` | `greifensee` | yes — the workflow is inactive without it |
+| Variable | `FORECAST_SPOT` | `myspot` | yes — the workflow is inactive without it |
 | Variable | `SFTP_HOST` | `sftp.example.ch` | yes |
 | Variable | `SFTP_PORT` | `22` | no (default 22) |
 | Variable | `SFTP_USER` | `myaccount` | yes |
@@ -375,7 +375,7 @@ The JSON is uploaded as `$SFTP_DIR/<spot>.json`.
 ### 7.4 Test
 
 *Actions → Forecast → Run workflow*. Then open
-`https://your-domain.ch/wind/greifensee.json` in the browser.
+`https://your-domain.ch/wind/myspot.json` in the browser.
 
 ### 7.5 Things to know
 
@@ -413,14 +413,14 @@ Copy `web/index.html` into the same directory as the JSON:
 
 ```
 public_html/wind/index.html
-public_html/wind/greifensee.json
+public_html/wind/myspot.json
 ```
 
-→ `https://your-domain.ch/wind/`. If the JSON has a different name or location, change
-`data-src` in the page:
+→ `https://your-domain.ch/wind/`. Set `data-src` in the page to the name or location of
+the JSON:
 
 ```html
-<div class="windmojo" id="windmojo" data-src="greifensee.json">
+<div class="windmojo" id="windmojo" data-src="myspot.json">
 ```
 
 Texts are English; they are plain strings in the script and easy to translate.
@@ -436,12 +436,12 @@ Texts are English; they are plain strings in the script and easy to translate.
 - **Inline** (e.g. WordPress "Custom HTML" block, Joomla/TYPO3 HTML element): copy the
   `<style>` block, the `<div class="windmojo" ...>` and the `<script>` block from
   `web/index.html`. All styles are scoped to `.windmojo`. Use an absolute
-  `data-src` (e.g. `/wind/greifensee.json`). Some CMS strip `<script>` tags for
+  `data-src` (e.g. `/wind/myspot.json`). Some CMS strip `<script>` tags for
   non-admin users; then use the iframe.
 
-- **Own design**: load the JSON yourself (`fetch('/wind/greifensee.json')`) — the format
+- **Own design**: load the JSON yourself (`fetch('/wind/myspot.json')`) — the format
   is described in [section 4](#4-json-format). Server-side PHP works as well:
-  `json_decode(file_get_contents(__DIR__ . '/greifensee.json'), true)`.
+  `json_decode(file_get_contents(__DIR__ . '/myspot.json'), true)`.
 
 ### 9.3 JSON on a different domain
 
@@ -500,8 +500,8 @@ requests with many variables as several calls, a run counts as roughly 16 API ca
   "Weather data: Open-Meteo.com (CC BY 4.0)" in its footer — keep an equivalent notice
   when building your own page.
 - **Measurement data:** production does not need the measurements. If you also want
-  to publish live measurements on the website, check the data provider's terms of use
-  separately (e.g. Datalakes for Greifensee).
+  to publish live measurements on the website, check the terms of use of your measurement
+  data provider separately.
 - **Data protection (Swiss nDSG / GDPR):** the forecast is computed in the background;
   visitors' browsers only contact your own domain. `web/index.html` loads no external
   resources. The unit choice is stored in the visitor's `localStorage` (no cookie, no

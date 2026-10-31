@@ -4,7 +4,7 @@
 # Inactive until the repository variable FORECAST_SPOT is set.
 #
 # Repository variables (Settings → Secrets and variables → Actions → Variables):
-#   FORECAST_SPOT   spot name, e.g. greifensee (needs data/spots/<spot>/input/config.yaml
+#   FORECAST_SPOT   spot name, e.g. myspot (needs data/spots/<spot>/input/config.yaml
 #                   and data/spots/<spot>/models/ committed, see DEPLOYMENT.md)
 #   SFTP_HOST       e.g. sftp.example.ch
 #   SFTP_PORT       optional, default 22

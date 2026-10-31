@@ -208,7 +208,9 @@ One XGBoost model for all hours (`python cli.py train`):
 - Early stopping on every 10th training day; metrics on separate test days
 - The loss tolerates timing errors of up to ±3 h: a wind peak forecast an hour early is not
   punished twice (false alarm + miss). On Greifensee this misses 5 percentage points fewer
-  windy days (≥ 4 m/s) at the same MAE. The hourly value means "this wind around this hour"
+  windy days (≥ 4 m/s) at the same MAE. The hourly value means "this wind around this hour".
+  On Dervio (thermal winds at regular times) there is no such gain, and strong wind is hit
+  less often at the exact hour; for thermal spots compare with `time_tolerance.hours: 0`
 
 What matters for the forecast and why: [FEATURE_RELEVANCE.md](research/03_FEATURE_ENGINEERING/FEATURE_RELEVANCE.md)
 

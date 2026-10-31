@@ -63,8 +63,8 @@ legacy layout with `paths` (relative to `data/spots/[spot]/`):
 
 ```yaml
 paths:
-  measurements: "../../zurich/greifensee/measurements/wind_data.csv"
-  features: "../../zurich/greifensee/features"
+  measurements: "../../[area]/[spot]/measurements/wind_data.csv"
+  features: "../../[area]/[spot]/features"
 ```
 
 ## Measurement File Format

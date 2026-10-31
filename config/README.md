@@ -22,22 +22,23 @@ config/
 ## Simplified Format
 
 Copy `config/examples/dervio.yaml` to `data/spots/[spot]/input/config.yaml` and edit.
-Required fields: `spot`, `latitude`, `longitude`.
+Required fields: `spot`, `latitude`, `longitude`. Minimal example (the top of
+`dervio.yaml`):
 
 ```yaml
-spot: greifensee
-name: "Greifensee"
-latitude: 47.35
-longitude: 8.68
-timezone: "Europe/Zurich"          # Timestamps in measurements.csv must be in this zone
+spot: dervio
+name: "Dervio, Lake Como"
+latitude: 46.083333
+longitude: 9.3
+timezone: "Europe/Rome"            # Timestamps in measurements.csv must be in this zone
 
 grid:
   radius_km: 20
 
 target:
-  column: "greifensee speed"       # Column name in measurements.csv
-  unit: "m/s"                      # m/s (default), km/h, kn or mph; converted to m/s on loading
-  direction_column: "greifensee direction"
+  column: "dervio speed"           # Column name in measurements.csv
+  unit: "km/h"                     # m/s (default), km/h, kn or mph; converted to m/s on loading
+  direction_column: "dervio direction"
 ```
 
 All options (test date strategy, XGBoost parameters, paths) are documented in

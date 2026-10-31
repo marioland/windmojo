@@ -304,6 +304,14 @@ the pipeline.
    the forecast is ≥ 4 m/s). ±1 h and ±2 h help less; a weaker shift penalty or less
    weight on the exact hour trades more MAE for fewer misses.
 
+   Dervio (9 months; 5 walk-forward and 9 cross-validation month blocks × 3 seeds) does
+   not confirm the gain: MAE −0.005 to −0.007 m/s (within noise), MAE at measured
+   ≥ 4 m/s +0.07 m/s (worse in every fold, also with ±1 h and ±2 h), strong wind hit at
+   the exact hour 3 points less often, missed days with ≥ 6 m/s −4 to −7 points (not
+   significant). On Greifensee the MAE at measured ≥ 4 m/s stays the same (+0.004 m/s).
+   Thermal valley winds come at regular times, so the exact hour carries information the
+   tolerance gives away. For such spots compare with `hours: 0`.
+
 ### Performance:
 
 Walk-forward, 15 test quarters, at least 2 years of training data:
