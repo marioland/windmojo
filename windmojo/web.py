@@ -215,9 +215,7 @@ def make_handler(app: ForecastApp):
             elif url.path == "/forecast.json":
                 data = app.forecast()
                 if data is None:
-                    self._json(
-                        404, {"message": "No forecast yet. Please update."}
-                    )
+                    self._json(404, {"message": "No forecast yet. Please update."})
                 else:
                     self._json(200, data)
             elif url.path == "/api/status":
