@@ -19,6 +19,7 @@ target:
   column: "dervio speed"           # Wind speed column
   unit: "km/h"                     # Unit of the speed column: m/s (default), km/h, kn, mph
   direction_column: "dervio direction"  # Optional: wind direction
+  # gust_column: "dervio gust"     # Optional: measured gusts (shown by `serve`)
 
 # Training configuration
 training:
@@ -63,7 +64,13 @@ forecast:
   # (local time in `timezone`) for horizon_hours. Must match the training download.
   initialization_time: "06:00"
   horizon_hours: 18
-  days_ahead: 7                    # Days forecast by `predict` (max. 16)
+  days_ahead: 7                    # Days forecast by `predict` (max. 16; 3 = today + 2 days)
+
+# Update button of `cli.py serve` (optional): script that refreshes the measurements,
+# run with the same Python from the repository root
+# measurements:
+#   update_script: "data/lake_como/dervio/download_measurements.py"
+#   update_args: []
 
 # Data paths (relative to spot directory: data/spots/{spot}/)
 # These are defaults and usually don't need to be changed

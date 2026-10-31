@@ -301,6 +301,55 @@ def save_forecast_json(data: Dict[str, Any], output_path: Path) -> None:
     tmp_path.replace(output_path)
 
 
+def run_forecast(
+    config: Dict[str, Any],
+    paths: Dict[str, Path],
+    history_days: int = DEFAULT_HISTORY_DAYS,
+    archive: bool = True,
+    output: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """
+    Load the spot's model, create the live forecast and write the JSON.
+
+    What `cli.py predict` and the update button of `cli.py serve` do.
+
+    Args:
+        config: Spot configuration (simplified format)
+        paths: Paths from get_paths(config)
+        history_days: Past days downloaded for lag and rolling features
+        archive: Keep the JSON in paths["forecast_archive"] and, once per
+            day, the raw forecast in paths["forecast_raw_archive"]
+        output: JSON file (default: paths["forecast"])
+
+    Returns:
+        Dictionary with "data" (the forecast JSON), "output", "hours" and the
+        archived files ("archived", "raw_archived"; None if not written)
+    """
+    from windmojo.training import UnifiedTrainer
+
+    trainer = UnifiedTrainer(config.get("training", {}))
+    trainer.load(paths["model"], paths["metadata"])
+
+    result = predict_forecast(
+        config,
+        trainer,
+        history_days=history_days,
+        raw_archive_dir=paths["forecast_raw_archive"] if archive else None,
+    )
+    data = forecast_to_dict(result, config, trainer)
+    output = Path(output) if output else paths["forecast"]
+    save_forecast_json(data, output)
+    return {
+        "data": data,
+        "output": output,
+        "hours": result,
+        "archived": (
+            archive_forecast(data, paths["forecast_archive"]) if archive else None
+        ),
+        "raw_archived": result.attrs.get("raw_archive"),
+    }
+
+
 def archive_forecast(data: Dict[str, Any], archive_dir: Path) -> Path:
     """
     Keep a copy of a forecast for later verification against measurements.

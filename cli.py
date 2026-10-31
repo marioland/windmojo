@@ -257,12 +257,11 @@ def evaluate(spot, config):
 def predict(spot, config, output, history_days, archive):
     """Create a live forecast and export it as JSON (see DEPLOYMENT.md)."""
     from windmojo.config import load_config, get_paths
-    from windmojo.training import UnifiedTrainer
-    from windmojo.prediction import predict_forecast, forecast_to_dict, save_forecast_json, archive_forecast
+    from windmojo.prediction import run_forecast
     import warnings
     import pandas as pd
 
-    # The feature pipeline adds columns one at a time; harmless, but it floods cron logs
+    # The feature pipeline adds columns one at a time; harmless, but it floods logs
     warnings.filterwarnings('ignore', category=pd.errors.PerformanceWarning)
 
     click.echo(f"\n{'='*60}")
@@ -277,31 +276,46 @@ def predict(spot, config, output, history_days, archive):
 
     cfg = load_config(config)
     paths = get_paths(cfg)
-    output = Path(output) if output else paths['forecast']
 
-    # Load model
-    click.echo("1. Loading trained model...")
-    trainer = UnifiedTrainer(cfg.get('training', {}))
-    trainer.load(paths['model'], paths['metadata'])
+    click.echo("Loading model, downloading forecast, predicting...")
+    run = run_forecast(cfg, paths, history_days=history_days, archive=archive, output=output)
+    if run['raw_archived']:
+        click.echo(f"   Raw forecast archived: {run['raw_archived']}")
+    if run['archived']:
+        click.echo(f"   Archived: {run['archived']}")
 
-    # Download, features, predict
-    click.echo("2. Downloading forecast and predicting...")
-    result = predict_forecast(cfg, trainer, history_days=history_days,
-                              raw_archive_dir=paths['forecast_raw_archive'] if archive else None)
-    if result.attrs.get('raw_archive'):
-        click.echo(f"   Raw forecast archived: {result.attrs['raw_archive']}")
-
-    # Export
-    click.echo("3. Writing JSON...")
-    data = forecast_to_dict(result, cfg, trainer)
-    save_forecast_json(data, output)
-    if archive:
-        click.echo(f"   Archived: {archive_forecast(data, paths['forecast_archive'])}")
-
-    click.echo(f"\n✓ {len(result)} hours ({result['time'].min():%Y-%m-%d %H:%M} to "
-               f"{result['time'].max():%Y-%m-%d %H:%M}) written to {output}")
+    hours = run['hours']
+    click.echo(f"\n✓ {len(hours)} hours ({hours['time'].min():%Y-%m-%d %H:%M} to "
+               f"{hours['time'].max():%Y-%m-%d %H:%M}) written to {run['output']}")
 
 
+
+
+@cli.command()
+@click.option('--spot', required=True, help='Spot name')
+@click.option('--config', '-c', type=click.Path(exists=True), help='Config file (default: data/spots/{spot}/input/config.yaml)')
+@click.option('--host', default='127.0.0.1', show_default=True,
+              help='Address to listen on (0.0.0.0 = also reachable from other devices in the network)')
+@click.option('--port', default=8000, show_default=True, help='Port')
+def serve(spot, config, host, port):
+    """Show the forecast page locally: update button, past days, CSV downloads."""
+    from windmojo.config import load_config, get_paths
+    from windmojo.web import ForecastApp, serve as make_server
+    import warnings
+    import pandas as pd
+
+    warnings.filterwarnings('ignore', category=pd.errors.PerformanceWarning)
+    if config is None:
+        config = Path(f"data/spots/{spot}/input/config.yaml")
+    cfg = load_config(Path(config))
+    server = make_server(ForecastApp(cfg, get_paths(cfg)), host, port)
+    click.echo(f"\nForecast page: http://localhost:{port}/   (stop with Ctrl+C)\n")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        click.echo("\nStopped.")
+    finally:
+        server.server_close()
 
 
 @cli.command()

@@ -33,6 +33,9 @@ python cli.py migrate --from-dir data/lake_como/dervio --to-spot dervio
 
 # 4. Live forecast as JSON (for websites)
 python cli.py predict --spot dervio
+
+# 5. Forecast page on your own computer: update button, past days, CSV downloads
+python cli.py serve --spot dervio        # then open http://localhost:8000/
 ```
 
 See [SIMPLIFIED_ARCHITECTURE.md](SIMPLIFIED_ARCHITECTURE.md) for complete documentation.

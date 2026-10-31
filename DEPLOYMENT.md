@@ -142,6 +142,44 @@ If the Open-Meteo API key is needed, set `OPEN_METEO_API_KEY` in the environment
 `.env` file in the repository root (loaded automatically when running `cli.py` from the
 checkout).
 
+### Local forecast page: `cli.py serve`
+
+For personal use no schedule and no web host are needed:
+
+```bash
+cd ~/projekte/windmojo-greifensee          # repository root
+.venv/bin/python cli.py serve --spot greifensee
+```
+
+Then open <http://localhost:8000/> in the browser (from WSL also in the Windows browser).
+Stop with Ctrl+C. Options: `--port 8001` for another port, `--host 0.0.0.0` to reach the
+page from other devices in the network (no password protection, only in trusted networks).
+
+The page is `web/index.html`, served by a small server from the Python standard library.
+Served this way it offers more than as a static file:
+
+| Element | What it does |
+|---------|--------------|
+| Button "Prognose und Messdaten aktualisieren" | Runs the measurement script of the spot (`measurements.update_script` in the config, e.g. a Datalakes download) and then `predict` (9 Open-Meteo requests, archived as usual). Each source is downloaded at most every 10 minutes; a second click within that time reuses the data. |
+| Measured values | Hours of the forecast that are already measured show the measurement next to the forecast (table column "Gemessen", green line). Gusts and direction need `target.gust_column` and `target.direction_column`. |
+| "Rückblick" | The past 7 days: the forecast as it was shown then (last archived run before the day, from `forecasts/archive/`) against the measurement, with the mean deviation of Windmojo and Open-Meteo. Fills up with every update. |
+| CSV downloads | `download/forecast.csv` (current forecast with the measurements so far) and `download/history.csv?days=30` (past days, forecast and measurement per hour), m/s, local time. |
+
+Spot configuration for the update button:
+
+```yaml
+target:
+  gust_column: "greifensee gust"          # optional, measured gusts
+forecast:
+  days_ahead: 3                           # today + the next 2 days
+measurements:                             # optional, refreshes paths.measurements
+  update_script: "data/zurich/greifensee/download_datalakes.py"   # relative to the repo root
+  update_args: ["--refresh-recent", "2"]
+```
+
+The script runs with the same Python as the server. Without `measurements`, the button only
+creates a new forecast.
+
 ## 4. JSON format
 
 ```json

@@ -8,6 +8,7 @@ from windmojo.prediction.forecast import (
     download_forecast,
     forecast_to_dict,
     predict_forecast,
+    run_forecast,
     save_forecast_json,
 )
 
@@ -17,5 +18,6 @@ __all__ = [
     "download_forecast",
     "forecast_to_dict",
     "predict_forecast",
+    "run_forecast",
     "save_forecast_json",
 ]
