@@ -73,6 +73,12 @@ class FeatureEngineeringPipeline:
         df = self.pivot_stage.transform(df)
         logger.info(f"  → {len(df)} timestamps, {len(df.columns)} base columns")
 
+        # Fill hours missing in the raw data (e.g. nights outside the forecast
+        # window) with empty rows, so that shift/diff/rolling in the following
+        # stages work on real hours instead of row counts
+        original_times = df["time"]
+        df = self._reindex_hourly(df)
+
         # Stage 2: Bias correction (if specified)
         if self.bias_correction:
             logger.info("Stage 2: Applying bias corrections...")
@@ -128,6 +134,10 @@ class FeatureEngineeringPipeline:
         df = self.physics_stage.transform(df)
         logger.info(f"  → {len(df.columns)} columns after physics features")
 
+        # Drop the gap-filling rows again (before outlier capping, so they
+        # don't influence the percentiles)
+        df = df[df["time"].isin(original_times)].reset_index(drop=True)
+
         # Stage 10: Outlier capping
         logger.info("Stage 10: Capping outliers...")
         df = self._cap_outliers(df)
@@ -142,6 +152,16 @@ class FeatureEngineeringPipeline:
         logger.info(f"✓ Feature engineering complete: {len(df.columns)} total features")
 
         return df
+
+    def _reindex_hourly(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Reindex to a continuous hourly time axis (missing hours become NaN rows)."""
+        full_index = pd.date_range(df["time"].min(), df["time"].max(), freq="h")
+        n_missing = len(full_index) - len(df)
+        if n_missing > 0:
+            logger.info(f"  Filling {n_missing} missing hours for time-based features")
+        return (
+            df.set_index("time").reindex(full_index).rename_axis("time").reset_index()
+        )
 
     def _apply_bias_correction(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply bias corrections to specified variables."""

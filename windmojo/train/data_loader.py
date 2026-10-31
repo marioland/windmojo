@@ -192,12 +192,16 @@ def _create_simple_split(
     return {f"train_{len(train_data)}_test_{len(test_data)}": (train_data, test_data)}
 
 
-def get_feature_columns(data: pd.DataFrame) -> List[str]:
+def get_feature_columns(
+    data: pd.DataFrame, measurement_columns: List[str] = None
+) -> List[str]:
     """
     Extract feature column names (exclude time, target, metadata).
 
     Args:
         data: Joined dataset
+        measurement_columns: Columns of the measurement file (excluded to
+            avoid leaking measured values into the features)
 
     Returns:
         List of feature column names
@@ -224,6 +228,8 @@ def get_feature_columns(data: pd.DataFrame) -> List[str]:
         "gera purescore",
         "lecco purescore",
     ]
+    if measurement_columns is not None:
+        exclude_cols += list(measurement_columns)
 
     # Get all columns that contain measurement-related keywords
     measurement_keywords = [
@@ -246,6 +252,12 @@ def get_feature_columns(data: pd.DataFrame) -> List[str]:
             continue
         # Skip if datetime type (XGBoost can't handle)
         if pd.api.types.is_datetime64_any_dtype(data[col]):
+            continue
+        # Skip text columns (e.g. precipitation_type; one-hot versions exist)
+        if not (
+            pd.api.types.is_numeric_dtype(data[col])
+            or pd.api.types.is_bool_dtype(data[col])
+        ):
             continue
         feature_cols.append(col)
 

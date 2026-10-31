@@ -22,6 +22,8 @@ import logging
 import sys
 from pathlib import Path
 
+import pandas as pd
+
 from windmojo.core.config import get_output_directories, load_config
 from windmojo.train.data_loader import (
     get_dataset_summary,
@@ -151,7 +153,8 @@ def main():
         )
 
         # Get feature columns
-        feature_columns = get_feature_columns(data)
+        measurement_columns = pd.read_csv(measurements_path, nrows=0).columns
+        feature_columns = get_feature_columns(data, measurement_columns)
         logger.info(f"\n✓ {len(feature_columns)} features available for training")
 
         # Prepare datasets
@@ -200,8 +203,12 @@ def main():
 
             hour_dir = output_dir / hour.replace(":", "")
 
-            # Load last trained model (most data)
-            model_files = sorted(hour_dir.glob("model1_*.json"))
+            # Load last trained model (most data); sort by test week number,
+            # not alphabetically ("test_w10" would sort after "test_w100")
+            model_files = sorted(
+                hour_dir.glob("model1_*.json"),
+                key=lambda p: int(p.stem.rsplit("_test_w", 1)[-1]),
+            )
             if not model_files:
                 logger.warning(f"  No models found for {hour}, skipping")
                 continue
