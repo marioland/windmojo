@@ -51,15 +51,16 @@ def features(spot):
 @click.option('--spot', required=True, help='Spot name')
 @click.option('--config', '-c', type=click.Path(exists=True), help='Config file (default: data/spots/{spot}/input/config.yaml)')
 def train(spot, config):
-    """Train Spatial Heavy Unified model."""
+    """Train the unified model on all features."""
     from windmojo.config import (load_config, get_paths, get_training_config, get_test_dates,
-                                 get_validation_dates, load_feature_selection)
-    from windmojo.training import SpatialHeavyTrainer
+                                 get_validation_dates)
+    from windmojo.features.pipeline import feature_columns
+    from windmojo.training import UnifiedTrainer
     from windmojo.units import measurement_unit, to_ms
     import pandas as pd
 
     click.echo(f"\n{'='*60}")
-    click.echo(f"Training Spatial Heavy Unified Model: {spot}")
+    click.echo(f"Training Unified Model: {spot}")
     click.echo(f"{'='*60}\n")
 
     # Load config
@@ -87,24 +88,12 @@ def train(spot, config):
     click.echo("2. Loading features...")
     features_file = paths['features'] / f"{spot}_features_phase1.parquet"
     features = pd.read_parquet(features_file)
+
+    # All features of the pipeline (taken before the merge, so measurement
+    # columns can never become features)
+    selected_features = feature_columns(features)
     features['date'] = features['time'].dt.date
-
-    # Load Spatial Heavy selection
-    click.echo("3. Loading Spatial Heavy feature selection...")
-    selected_features = load_feature_selection("spatial_heavy")
-    available = set(features.columns)
-    missing = [f for f in selected_features if f not in available]
-    if missing:
-        click.echo(f"   ⚠ {len(missing)} of {len(selected_features)} selected features not in feature file: "
-                   f"{', '.join(missing[:5])}{', ...' if len(missing) > 5 else ''}")
-    selected_features = [f for f in selected_features if f in available]
-
-    # Add hour features
-    for hf in ['hour', 'hour_sin', 'hour_cos']:
-        if hf in available and hf not in selected_features:
-            selected_features.append(hf)
-
-    click.echo(f"   Using {len(selected_features)} features")
+    click.echo(f"3. Using all {len(selected_features)} features")
 
     # Merge
     merged = features.merge(
@@ -137,7 +126,7 @@ def train(spot, config):
 
     # Train
     click.echo("\n5. Training model...")
-    trainer = SpatialHeavyTrainer(training_cfg)
+    trainer = UnifiedTrainer(training_cfg)
     results = trainer.train(train_data, validation_data, test_data, selected_features)
 
     # Save
@@ -158,7 +147,7 @@ def train(spot, config):
 def evaluate(spot, config):
     """Evaluate trained model on test days and create diagrams."""
     from windmojo.config import load_config, get_paths, get_test_dates
-    from windmojo.training import SpatialHeavyTrainer
+    from windmojo.training import UnifiedTrainer
     from windmojo.evaluation import calculate_metrics, create_validation_diagrams
     from windmojo.units import measurement_unit, to_ms
     import pandas as pd
@@ -181,7 +170,7 @@ def evaluate(spot, config):
 
     # Load model
     click.echo("1. Loading trained model...")
-    trainer = SpatialHeavyTrainer(cfg['training'])
+    trainer = UnifiedTrainer(cfg['training'])
     trainer.load(paths['model'], paths['metadata'])
 
     # Load measurements
@@ -265,7 +254,7 @@ def evaluate(spot, config):
 def predict(spot, config, output, history_days):
     """Create a live forecast and export it as JSON (see DEPLOYMENT.md)."""
     from windmojo.config import load_config, get_paths
-    from windmojo.training import SpatialHeavyTrainer
+    from windmojo.training import UnifiedTrainer
     from windmojo.prediction import predict_forecast, forecast_to_dict, save_forecast_json
     import warnings
     import pandas as pd
@@ -289,7 +278,7 @@ def predict(spot, config, output, history_days):
 
     # Load model
     click.echo("1. Loading trained model...")
-    trainer = SpatialHeavyTrainer(cfg.get('training', {}))
+    trainer = UnifiedTrainer(cfg.get('training', {}))
     trainer.load(paths['model'], paths['metadata'])
 
     # Download, features, predict

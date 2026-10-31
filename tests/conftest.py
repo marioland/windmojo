@@ -38,7 +38,7 @@ def valid_config_with_training():
         "latitude": LAKE_COMO_LAT,
         "longitude": LAKE_COMO_LON,
         "training": {
-            "model": "spatial_heavy_unified",
+            "model": "unified",
             "test_dates": {
                 "strategy": "first_n_days_every_nth_month",
                 "n_days": 3,

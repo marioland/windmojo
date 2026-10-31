@@ -1,7 +1,7 @@
 """
-Spatial Heavy Unified Trainer
+Unified Trainer
 
-Single unified model for all hours using Spatial Heavy feature selection.
+Single XGBoost model for all hours, trained on all features of the pipeline.
 """
 
 import json
@@ -16,12 +16,14 @@ import xgboost as xgb
 logger = logging.getLogger(__name__)
 
 
-class SpatialHeavyTrainer:
+class UnifiedTrainer:
     """
-    Trainer for Spatial Heavy Unified model.
+    Trainer for the unified model.
 
-    Single XGBoost model trained on all hours with hour encoding.
-    Uses selected Spatial Heavy features (no feature discovery phase needed).
+    Single XGBoost model trained on all hours with hour encoding. Uses all
+    features of the pipeline: XGBoost copes with them, a feature selection
+    did not improve the forecast (see
+    research/03_FEATURE_ENGINEERING/FEATURE_RELEVANCE.md).
     """
 
     def __init__(self, config: Dict):
@@ -60,7 +62,7 @@ class SpatialHeavyTrainer:
         """
         self.feature_columns = feature_columns
 
-        logger.info("Training Spatial Heavy Unified model...")
+        logger.info("Training unified model...")
         logger.info(f"  Features: {len(feature_columns)}")
         logger.info(f"  Train samples: {len(train_data)}")
         logger.info(f"  Validation samples: {len(validation_data)}")
@@ -191,7 +193,7 @@ class SpatialHeavyTrainer:
 
         # Save metadata
         metadata = {
-            "model_type": "spatial_heavy_unified",
+            "model_type": "unified",
             "features": self.feature_columns,
             "feature_medians": {
                 f: None if pd.isna(v) else float(v)

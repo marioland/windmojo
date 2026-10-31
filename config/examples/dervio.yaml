@@ -22,7 +22,7 @@ target:
 
 # Training configuration
 training:
-  model: spatial_heavy_unified     # Model type (Spatial Heavy Unified)
+  model: unified                   # Model type (one XGBoost model for all hours)
 
   # Test/validation days selection
   test_dates:
@@ -33,7 +33,7 @@ training:
     #   - "2025-05-01"
     #   - "2025-05-02"
 
-  # XGBoost model parameters (Spatial Heavy Unified optimized)
+  # XGBoost model parameters
   xgboost:
     max_depth: 6
     learning_rate: 0.05

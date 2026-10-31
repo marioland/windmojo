@@ -128,7 +128,7 @@ def predict_forecast(
 
     Args:
         config: Spot configuration (simplified format)
-        trainer: Loaded SpatialHeavyTrainer
+        trainer: Loaded UnifiedTrainer
         today: First forecast day (default: today in the spot's timezone)
         history_days: Past days downloaded for lag and rolling features
         client: Optional OpenMeteoClient
@@ -136,7 +136,8 @@ def predict_forecast(
     Returns:
         DataFrame with time, wind_speed (model, m/s) and the Open-Meteo
         values at the center point (openmeteo_wind_speed, openmeteo_gusts in
-        m/s, wind_direction in degrees)
+        m/s, wind_direction in degrees). attrs["missing_features"] lists the
+        model features missing in the forecast data (filled with medians).
     """
     timezone = pytz.timezone(config.get("timezone", "UTC"))
     today = today or datetime.now(timezone).date()
@@ -171,6 +172,7 @@ def predict_forecast(
     )
     result["openmeteo_gusts"] = result["time"].map(center["wind_gusts_10m"]) * KMH_TO_MS
     result["wind_direction"] = result["time"].map(center["wind_direction_10m"])
+    result.attrs["missing_features"] = missing
 
     return result
 
@@ -187,7 +189,7 @@ def forecast_to_dict(
     Args:
         result: Output of predict_forecast()
         config: Spot configuration
-        trainer: Loaded SpatialHeavyTrainer (for model metadata)
+        trainer: Loaded UnifiedTrainer (for model metadata)
         generated_at: Creation time (default: now in the spot's timezone)
 
     Returns:
@@ -219,8 +221,9 @@ def forecast_to_dict(
         "generated_at": generated_at.isoformat(timespec="seconds"),
         "units": {"wind_speed": "m/s", "wind_direction": "deg"},
         "model": {
-            "type": "spatial_heavy_unified",
+            "type": "unified",
             "test_mae": trainer.training_history.get("test", {}).get("mae"),
+            "missing_features": len(result.attrs.get("missing_features", [])),
         },
         "source": "Weather data by Open-Meteo.com (CC BY 4.0)",
         "hours": hours,

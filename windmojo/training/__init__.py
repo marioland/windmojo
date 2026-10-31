@@ -1,5 +1,5 @@
 """Training module for windmojo."""
 
-from windmojo.training.trainer import SpatialHeavyTrainer
+from windmojo.training.trainer import UnifiedTrainer
 
-__all__ = ["SpatialHeavyTrainer"]
+__all__ = ["UnifiedTrainer"]

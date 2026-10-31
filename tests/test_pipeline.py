@@ -11,7 +11,7 @@ from windmojo.data.grid_downloader import (
     CENTER_VARIABLES,
     CIRCLE_VARIABLES,
 )
-from windmojo.features.pipeline import FeatureEngineeringPipeline
+from windmojo.features.pipeline import FeatureEngineeringPipeline, feature_columns
 from windmojo.features.snow_features import MAX_HOURS_SINCE_EVENT
 from windmojo.prediction.forecast import apply_forecast_window
 
@@ -200,3 +200,14 @@ class TestFeatureSet:
         assert (
             actual == expected
         ), f"added: {sorted(actual - expected)}, removed: {sorted(expected - actual)}"
+
+
+class TestFeatureColumns:
+    def test_numeric_features_without_metadata(self, features):
+        columns = feature_columns(features)
+        assert "hour" in columns
+        assert "wind_speed_10m_center" in columns
+        for column in ["time", "forecast_made", "forecast_date", "month"]:
+            assert column not in columns
+        for column in ["precipitation_type", "surface_state"]:  # text, one-hot exists
+            assert column not in columns

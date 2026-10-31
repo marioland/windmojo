@@ -30,6 +30,32 @@ DROPPED_COLUMNS = [
     f"pressure_msl_{point}" for point in ["n", "ne", "e", "se", "s", "sw", "w", "nw"]
 ] + ["evapotranspiration_center"]
 
+# Columns of the feature table that are no model features (month is covered
+# by month_sin/month_cos)
+NON_FEATURE_COLUMNS = ["time", "forecast_made", "forecast_date", "month"]
+
+
+def feature_columns(features: pd.DataFrame) -> List[str]:
+    """
+    Model features of a feature table: all numeric columns except metadata.
+
+    Text columns (precipitation_type, surface_state) are skipped, they exist
+    one-hot encoded. Call it on the pipeline output before merging
+    measurements, so measured values can never become features.
+
+    Args:
+        features: Output of FeatureEngineeringPipeline.transform()
+
+    Returns:
+        List of feature column names
+    """
+    return [
+        col
+        for col in features.columns
+        if col not in NON_FEATURE_COLUMNS
+        and pd.api.types.is_numeric_dtype(features[col])
+    ]
+
 
 class FeatureEngineeringPipeline:
     """

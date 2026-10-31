@@ -19,7 +19,7 @@ from windmojo.prediction.forecast import (
     forecast_to_dict,
     save_forecast_json,
 )
-from windmojo.training import SpatialHeavyTrainer
+from windmojo.training import UnifiedTrainer
 
 
 def hourly_frame(start="2026-10-30", days=2, **columns):
@@ -116,7 +116,7 @@ class TestForecastToDict:
     """Tests for forecast_to_dict."""
 
     def make_trainer(self):
-        trainer = SpatialHeavyTrainer({})
+        trainer = UnifiedTrainer({})
         trainer.training_history = {"test": {"mae": 0.74}}
         return trainer
 
@@ -141,7 +141,22 @@ class TestForecastToDict:
             }
         ]
         assert data["model"]["test_mae"] == 0.74
+        assert data["model"]["missing_features"] == 0
         assert data["units"]["wind_speed"] == "m/s"
+
+    def test_reports_missing_features(self, valid_config):
+        result = pd.DataFrame(
+            columns=[
+                "time",
+                "wind_speed",
+                "openmeteo_wind_speed",
+                "openmeteo_gusts",
+                "wind_direction",
+            ]
+        )
+        result.attrs["missing_features"] = ["pressure_msl_grad_n_s", "cloud_cover_n"]
+        data = forecast_to_dict(result, valid_config, self.make_trainer())
+        assert data["model"]["missing_features"] == 2
 
     def test_generated_at_has_timezone(self, valid_config):
         result = pd.DataFrame(
@@ -177,7 +192,7 @@ class TestTrainerMedians:
         rng = np.random.default_rng(0)
         train = pd.DataFrame({"a": rng.normal(10, 1, 50), "b": rng.normal(size=50)})
         train["target"] = train["a"]
-        trainer = SpatialHeavyTrainer({"xgboost": {"n_estimators": 5}})
+        trainer = UnifiedTrainer({"xgboost": {"n_estimators": 5}})
         trainer.train(train, train.copy(), train.copy(), ["a", "b"])
         return trainer
 
@@ -185,7 +200,7 @@ class TestTrainerMedians:
         trainer = self.train_tiny_model()
         trainer.save(tmp_path / "model.json", tmp_path / "metadata.json")
 
-        loaded = SpatialHeavyTrainer({})
+        loaded = UnifiedTrainer({})
         loaded.load(tmp_path / "model.json", tmp_path / "metadata.json")
 
         pd.testing.assert_series_equal(
@@ -212,7 +227,7 @@ class TestTrainerEarlyStopping:
         params = {"xgboost": {"n_estimators": 200, "early_stopping_rounds": 5}}
         models = []
         for test_data in (test, noise):
-            trainer = SpatialHeavyTrainer(params)
+            trainer = UnifiedTrainer(params)
             trainer.train(train, validation, test_data, ["a", "b"])
             models.append(trainer)
 

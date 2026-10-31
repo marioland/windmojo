@@ -14,7 +14,6 @@ from windmojo.config import (
     get_test_dates,
     get_training_config,
     get_validation_dates,
-    load_feature_selection,
     validate_config,
 )
 
@@ -134,24 +133,6 @@ class TestGetPaths:
 
 
 
-class TestLoadFeatureSelection:
-    """Tests for load_feature_selection."""
-
-    def test_spatial_heavy_is_default(self):
-        features = load_feature_selection()
-        assert features == load_feature_selection("spatial_heavy")
-
-    def test_spatial_heavy_contents(self):
-        features = load_feature_selection("spatial_heavy")
-        assert len(features) == 164
-        assert len(set(features)) == len(features)
-        assert "pressure_msl_grad_n_s" in features
-
-    def test_unknown_selection_raises(self):
-        with pytest.raises(ConfigurationError, match="Unknown feature selection"):
-            load_feature_selection("does_not_exist")
-
-
 class TestGetGridConfig:
     """Tests for get_grid_config."""
 
@@ -172,7 +153,7 @@ class TestGetTrainingConfig:
     def test_default_model(self):
         config = make_valid_config()
         training = get_training_config(config)
-        assert training["model"] == "spatial_heavy_unified"
+        assert training["model"] == "unified"
 
     def test_default_test_dates_strategy(self):
         config = make_valid_config()
