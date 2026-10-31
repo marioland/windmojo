@@ -23,7 +23,6 @@ def cli():
 
 
 from windmojo.cli.commands.cache import cache
-from windmojo.cli.commands.diagram import diagram
 
 # Import commands
 from windmojo.cli.commands.download import download
@@ -31,7 +30,6 @@ from windmojo.cli.commands.download import download
 # Register commands
 cli.add_command(download)
 cli.add_command(cache)
-cli.add_command(diagram)
 
 
 if __name__ == "__main__":

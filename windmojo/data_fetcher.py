@@ -259,7 +259,7 @@ def main():
                 f"     uv run python -m windmojo.feature_engineer --config {args.config}"
             )
             logger.info("  2. Train model:")
-            logger.info(f"     uv run python -m windmojo.train --config {args.config}")
+            logger.info("     uv run python cli.py train --spot <spot> (see README)")
 
         sys.exit(0 if stats["failed"] == 0 else 1)
 
