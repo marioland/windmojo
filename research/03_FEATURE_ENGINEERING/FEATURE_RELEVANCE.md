@@ -22,8 +22,9 @@
    feature list, readable importances, no features that can never work.
 5. **A feature must be computable identically in training and live.** Two bugs violated
    this (outlier capping over the whole input, unbounded look-backs).
-6. **The real weakness is strong wind, not features.** All models underpredict wind of
-   ≥ 4 m/s by about 1 m/s.
+6. **Strong wind needs a probability, not a sharper point forecast.** The model is
+   calibrated (when it forecasts ≥ 4 m/s, it is right on average), but a single value
+   detects only half of the hours with ≥ 4 m/s.
 
 ## How it was tested
 
@@ -150,15 +151,36 @@ forecast. The model size (1.1–1.5 MB) depends on the number of trees, not of f
 
 ## Open: strong wind
 
-| | MAE overall | MAE at ≥ 4 m/s | Bias at ≥ 4 m/s |
-|---|---|---|---|
-| Greifensee, current pipeline (384 features) | 0.69 m/s | 1.20 m/s | −1.02 m/s |
-| GFS 10 m, linearly calibrated | 0.81 m/s | 1.63 m/s | −1.54 m/s |
+Hours with measured wind ≥ 4 m/s are about 1 m/s lower in the forecast (MAE 1.20 m/s
+there, GFS calibrated 1.63 m/s). That is regression to the mean, not a model error:
+selecting hours by the measured value picks those where the wind turned out stronger than
+forecast. Conditioned on the forecast, the model is calibrated (test year 2025-10 to
+2026-10, bias −0.07 m/s when it forecasts ≥ 4 m/s):
 
-All models pull strong wind towards the mean. Feature work moved this little; the best
-step (GFS surface winds) reduced the strong-wind MAE by 0.06 m/s. The next lever is the
-loss or the target (sample weights for strong wind, quantile objectives, a correction by
-wind regime), not the feature set.
+| Forecast | Hours | Mean forecast | Mean measured |
+|---|---|---|---|
+| 1–2 m/s | 3,033 | 1.49 m/s | 1.45 m/s |
+| 2–3 m/s | 1,809 | 2.46 m/s | 2.50 m/s |
+| 3–4 m/s | 876 | 3.43 m/s | 3.54 m/s |
+| 4–5 m/s | 328 | 4.45 m/s | 4.55 m/s |
+| > 5 m/s | 233 | 5.85 m/s | 5.87 m/s |
+
+The limit is what a single value can say. Using "forecast ≥ 4 m/s" as decision detects
+52 % of the hours with ≥ 4 m/s (21 % false alarms); "forecast ≥ 3 m/s" detects 84 % (50 %
+false alarms). Weighting strong wind or changing the loss would only move along this
+trade-off and break the calibration. The next lever is a probabilistic output (chance of
+≥ 4 m/s per hour, or quantiles) plus a gust forecast. Feature work moved strong wind
+little; the best step (GFS surface winds) reduced the MAE at ≥ 4 m/s by 0.06 m/s.
+
+**Showers and thunderstorms.** The measuring platform (temperature, pressure, rain every
+15 min) shows about 20 gust fronts per summer at Greifensee. In the hour of the gust front
+the hourly mean is 5.2 m/s (best 15-min mean 7.3 m/s, gusts 12.3 m/s); the model forecasts
+4.3 m/s and spreads the rise over three hours, because the weather model places cells about
+an hour and a few kilometres off. When the weather model shows a thunderstorm code, the
+model raises its forecast and is right on average. Gust fronts are 7 % of the summer hours
+with ≥ 4 m/s and 4 % of the summer error. Candidate inputs: CAPE, lifted index and
+convective inhibition (available from Open-Meteo, not downloaded yet) and precipitation at
+the circle points (an approaching cell).
 
 ## Related
 

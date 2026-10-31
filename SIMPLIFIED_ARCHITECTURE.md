@@ -285,7 +285,9 @@ Walk-forward, 15 test quarters, at least 2 years of training data:
 | Greifensee (2021-2026) | 0.69 m/s | 0.81 m/s | 1.20 m/s |
 
 Dervio (9 months of data, monthly blocks): MAE 1.53-1.56 m/s, GFS calibrated 1.69-1.74 m/s.
-All models underpredict strong wind (bias about −1 m/s at ≥ 4 m/s).
+Forecasts are calibrated. Hours with measured ≥ 4 m/s look about 1 m/s too low only because
+of regression to the mean; a single value detects about half of them (see
+[FEATURE_RELEVANCE.md](research/03_FEATURE_ENGINEERING/FEATURE_RELEVANCE.md)).
 
 ## Test Date Strategies
 
