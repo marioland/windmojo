@@ -152,7 +152,7 @@ checkout).
   "timezone": "Europe/Zurich",
   "generated_at": "2026-10-31T10:10:05+01:00",
   "units": {"wind_speed": "m/s", "wind_direction": "deg"},
-  "model": {"type": "spatial_heavy_unified", "test_mae": 0.74},
+  "model": {"type": "unified", "test_mae": 0.71, "missing_features": 0},
   "source": "Weather data by Open-Meteo.com (CC BY 4.0)",
   "hours": [
     {
@@ -170,6 +170,7 @@ checkout).
 |-------|---------|
 | `generated_at` | Creation time with UTC offset. Use it to detect stale forecasts. |
 | `model.test_mae` | Mean absolute error on the test days during training (m/s). |
+| `model.missing_features` | Number of model features missing in the forecast data (filled with training medians). Should be 0; a value above 0 means the download lacked variables or grid points and the forecast may be less accurate. |
 | `hours[].time` | Local time of the spot (`timezone`), without offset. Starts with today's first forecast hour; past hours of today are included. Night hours are not forecast. |
 | `hours[].wind_speed` | **Windmojo forecast**, mean wind in m/s (what the model was trained on). |
 | `hours[].openmeteo_wind_speed` | Raw weather model wind at 10 m, center point, m/s — for comparison. |

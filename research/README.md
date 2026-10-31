@@ -141,9 +141,18 @@ API documentation and data source evaluation
 
 ## 03 - Feature Engineering
 
+### [FEATURE_RELEVANCE.md](03_FEATURE_ENGINEERING/FEATURE_RELEVANCE.md)
+
+**Which features matter, and why the model uses all of them**
+
+- Walk-forward comparison of feature selections on Greifensee and Dervio: none beats all features
+- What drives the wind at Greifensee (GFS wind, pressure gradient along the lake axis, clouds)
+- What makes a feature worthless, which bugs caused it, and rules for new features
+- Robustness against missing features; strong wind as the open weakness
+
 ### [SPATIAL_HEAVY_SELECTION.md](03_FEATURE_ENGINEERING/SPATIAL_HEAVY_SELECTION.md)
 
-**Origin and contents of the production feature selection (164 features)**
+**Superseded:** origin and contents of the former packaged feature selection (164 features)
 
 - Why the original 724-name Phase 2 list reduces to 164 existing features
 - Composition by category

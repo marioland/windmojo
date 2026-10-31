@@ -5,7 +5,8 @@
 Windmojo has been simplified to focus on a single, unified approach:
 
 - **Single-level spot hierarchy** (removed area/spot duality)
-- **Single model: Spatial Heavy Unified** (removed Phase 1/Phase 2)
+- **Single model: one XGBoost model for all hours on all features** (removed Phase 1/Phase 2
+  and feature selections)
 - **Clear separation**: input vs training vs models
 - **Unified CLI** at root level
 
@@ -18,7 +19,7 @@ windmojo/
 │   ├── config.py                   # Configuration management
 │   ├── training/
 │   │   ├── __init__.py
-│   │   └── trainer.py              # SpatialHeavyTrainer
+│   │   └── trainer.py              # UnifiedTrainer
 │   ├── evaluation/
 │   │   ├── __init__.py
 │   │   ├── metrics.py              # calculate_metrics()
@@ -95,7 +96,7 @@ target:
 
 # Training configuration
 training:
-  model: spatial_heavy_unified
+  model: unified
 
   # Test date selection
   test_dates:
@@ -159,7 +160,7 @@ python cli.py migrate \
 ### 2. Training
 
 ```bash
-# Train Spatial Heavy Unified model
+# Train the unified model
 python cli.py train --spot dervio
 
 # Or with custom config
@@ -169,11 +170,12 @@ python cli.py train --spot dervio --config /path/to/config.yaml
 **What it does:**
 1. Loads config and paths
 2. Loads measurements and features
-3. Loads Spatial Heavy feature selection (`windmojo/selections/spatial_heavy.json`, same for every spot)
-4. Adds hour encoding (hour, hour_sin, hour_cos)
-5. Splits data by test_dates strategy
-6. Trains unified XGBoost model
-7. Saves model.json and metadata.json
+3. Uses all features of the pipeline (`feature_columns()`, including the hour encoding
+   `hour`, `hour_sin`, `hour_cos`); taken before the merge, so measurement columns never
+   become features
+4. Splits data by test_dates strategy; every 10th remaining day is the early-stopping set
+5. Trains unified XGBoost model
+6. Saves model.json and metadata.json
 
 **Example output:**
 ```
@@ -222,8 +224,12 @@ python cli.py predict --spot dervio --output /path/to/web/dervio.json
 1. Loads the trained model and metadata
 2. Downloads the current Open-Meteo forecast for the 9-point grid (plus 7 past days
    for lag/rolling features), restricted to the training hours (`forecast` section)
-3. Runs the same feature pipeline as for training (without outlier capping)
-4. Predicts and writes JSON (default `data/spots/{spot}/forecasts/forecast.json`)
+3. Runs the same feature pipeline as for training. No feature looks back more than 7 days
+   and none uses statistics over the whole input, so live features equal training
+   features (checked by `tests/test_pipeline.py::TestLiveParity`)
+4. Predicts and writes JSON (default `data/spots/{spot}/forecasts/forecast.json`);
+   `model.missing_features` counts model features missing in the forecast data
+   (filled with training medians)
 
 Scheduling, website integration and hosting variants (cron on the web host,
 GitHub Actions + SFTP, own server): **[DEPLOYMENT.md](DEPLOYMENT.md)**.
@@ -245,40 +251,41 @@ python cli.py download \
 python cli.py features --spot dervio
 ```
 
-## Model Architecture: Spatial Heavy Unified
+## Model Architecture: Unified Model
 
 ### What is it?
 
-A **single XGBoost model** trained on all hours with hour encoding, using a carefully selected subset of spatial features.
+A **single XGBoost model** trained on all hours with hour encoding, using all features of
+the pipeline.
 
 ### Key Characteristics:
 
-1. **Unified across hours**: One model handles all 24 hours
+1. **Unified across hours**: One model handles all hours
    - Uses hour encoding: `hour`, `hour_sin`, `hour_cos`
    - No per-hour models needed
 
-2. **Spatial Heavy features**: packaged list of 164 features (`windmojo/selections/spatial_heavy.json`),
-   plus `hour`/`hour_cos` = 166 model inputs. Features missing from the spot's feature file are skipped
-   with a warning. Background: [research/03_FEATURE_ENGINEERING/SPATIAL_HEAVY_SELECTION.md](research/03_FEATURE_ENGINEERING/SPATIAL_HEAVY_SELECTION.md).
-   Selected from:
-   - GFS variables at 9-point circular grid
-   - Synoptic-scale features (500mb heights, temperature gradients, etc.)
-   - Wind shear features
-   - Temporal features (lags, rolling statistics)
+2. **All features** (384 on Greifensee): GFS variables at the 9-point grid, spatial and
+   vertical gradients, lags, rolling statistics, physics and snow indicators. A feature
+   selection brought no gain in walk-forward tests on Greifensee and Dervio; the former
+   packaged `spatial_heavy` list (164 features) was 0.024-0.035 m/s worse. Background:
+   [FEATURE_RELEVANCE.md](research/03_FEATURE_ENGINEERING/FEATURE_RELEVANCE.md).
 
-3. **No feature discovery phase**: Pre-selected features eliminate need for Phase 1/Phase 2
-
-4. **XGBoost with regularization**:
+3. **XGBoost with regularization**:
    - Subsample: 0.8
    - Column sample: 0.8
    - L1/L2 regularization
-   - Early stopping
+   - Early stopping on every 10th training day (never on the test days)
 
 ### Performance:
 
-- **Test MAE**: ~1.49 m/s (Dervio)
-- **Improvement over GFS**: +10.7%
-- **R² score**: 0.334
+Walk-forward, 15 test quarters, at least 2 years of training data:
+
+| Spot | MAE | GFS 10 m, linearly calibrated | MAE at ≥ 4 m/s |
+|------|-----|-------------------------------|----------------|
+| Greifensee (2021-2026) | 0.69 m/s | 0.81 m/s | 1.20 m/s |
+
+Dervio (9 months of data, monthly blocks): MAE 1.53-1.56 m/s, GFS calibrated 1.69-1.74 m/s.
+All models underpredict strong wind (bias about −1 m/s at ≥ 4 m/s).
 
 ## Test Date Strategies
 
@@ -337,16 +344,18 @@ test_dates = get_test_dates(config, all_dates)
 ### Training
 
 ```python
-from windmojo.training import SpatialHeavyTrainer
+from windmojo.features.pipeline import feature_columns
+from windmojo.training import UnifiedTrainer
 
 # Initialize
-trainer = SpatialHeavyTrainer(config['training'])
+trainer = UnifiedTrainer(config['training'])
 
-# Train
+# Train (early stopping on validation_df, metrics on test_df)
 results = trainer.train(
     train_data=train_df,
+    validation_data=validation_df,
     test_data=test_df,
-    feature_columns=feature_list
+    feature_columns=feature_columns(features)
 )
 
 # Save
@@ -420,7 +429,7 @@ If you have data in the old `data/{area}/{spot}/` structure:
 
 1. **Area/Spot duality**: Only `spot` now (single level)
 2. **Phase 1/Phase 2**: Single unified training
-3. **Multiple model types**: Only Spatial Heavy Unified
+3. **Multiple model types and feature selections**: Only the unified model on all features
 4. **Per-hour models**: Unified model with hour encoding
 5. **Complex config structure**: Simplified YAML
 6. **Old CLI**: `windmojo/cli/` directory removed
@@ -446,9 +455,7 @@ If you have data in the old `data/{area}/{spot}/` structure:
 
 1. **Implement download command**: Wire up GFS data fetcher
 2. **Implement features command**: Wire up feature engineering
-3. **Delete deprecated files**: Remove old phase-based code
-4. **Update README**: Document new workflow
-5. **Add examples**: More sample configs
+3. **Add examples**: More sample configs
 
 ### For Production:
 
@@ -459,29 +466,12 @@ If you have data in the old `data/{area}/{spot}/` structure:
 
 ## Performance Summary
 
-Based on Dervio spot (Lake Como; measurements in km/h, converted to m/s):
+Current results: see [Performance](#performance) above and
+[FEATURE_RELEVANCE.md](research/03_FEATURE_ENGINEERING/FEATURE_RELEVANCE.md).
 
-- **Training samples**: ~6,600 hours
-- **Test samples**: 318 hours (20 days, all hours)
-- **Features**: 166 (Spatial Heavy selection)
-- **Train MAE**: 0.82 m/s
-- **Test MAE**: 1.49 m/s
-- **Improvement over GFS**: +10.7%
-
-**Per-month performance**:
-- January: +4.3% improvement
-- March: +28.1% improvement
-- May: +2.9% improvement
-- July: +7.5% improvement
-- September: +9.4% improvement
-
-**Metrics**:
-- RMSE: 1.92 m/s
-- R²: 0.334
-- MBE: -0.08 m/s (slight underprediction bias)
-
-These numbers were first reported in km/h labelled as m/s (the Dervio measurements are
-in km/h and the GFS baseline was compared without conversion; fixed with `target.unit`).
+Earlier Dervio numbers (test MAE 1.49 m/s, +10.7 % over GFS, 166 `spatial_heavy`
+features) are superseded: they came from a single test split with early stopping on the
+test days, which made them optimistic.
 
 ## Questions?
 

@@ -17,8 +17,6 @@ Development and research scripts used during model development. These are provid
 | Script | Description |
 |--------|-------------|
 | `train_model1b_synoptic.py` | Train Model 1b with synoptic features |
-| `train_model2_synoptic24.py` | Train Model 2 with 24-hour synoptic data |
-| `run_phase2_all_selections.sh` | Run Phase 2 training for all feature selections |
 | `compare_sorting_methods.py` | Compare feature sorting strategies |
 
 ## Visualization

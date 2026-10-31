@@ -1,7 +1,12 @@
 # Spatial Heavy Feature Selection
 
+> **Superseded (2026-10-31):** `python cli.py train` uses all features; the selection and
+> `windmojo/selections/` were removed. In walk-forward tests `spatial_heavy` was 0.024 m/s
+> worse than all features on Greifensee and 0.030 m/s worse on Dervio. See
+> [FEATURE_RELEVANCE.md](FEATURE_RELEVANCE.md). Kept for history.
+
 **Date**: 2026-10-30
-**Applies to**: `windmojo/selections/spatial_heavy.json`, used by `python cli.py train`
+**Applied to**: `windmojo/selections/spatial_heavy.json` (removed), used by `python cli.py train`
 
 ---
 

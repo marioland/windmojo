@@ -10,7 +10,7 @@ currently in use, by different pipeline steps:
 
 | Layout | Used by |
 |--------|---------|
-| `data/[area]/[spot]/` (legacy) | download (`windmojo.data_fetcher`), feature engineering (`windmojo.feature_engineer`), Phase 1/2 training |
+| `data/[area]/[spot]/` (legacy) | download (`windmojo.data_fetcher`), feature engineering (`windmojo.feature_engineer`) |
 | `data/spots/[spot]/` (new) | `python cli.py train`, `evaluate` and `predict` |
 
 A new spot therefore starts in the legacy layout and is moved to `spots/` with
@@ -27,8 +27,7 @@ data/
         ├── raw/                     # Downloaded forecast data (auto-created)
         ├── features/                # Engineered features (auto-created)
         │   └── [spot]_features_phase1.parquet
-        ├── forecasts/               # Generated predictions (auto-created)
-        └── models/                  # Phase 1/2 models
+        └── forecasts/               # Generated predictions (auto-created)
 ```
 
 ### New layout: `data/spots/[spot]/`
@@ -58,6 +57,15 @@ structure and copies `measurements/wind_data.csv` → `input/measurements.csv`, 
 and feature Parquet files, and the legacy config `config/[area]/[spot].yaml` →
 `input/config.yaml`. The copied config is still in the legacy format; convert it to the
 simplified format (see `config/examples/dervio.yaml`).
+
+Instead of copying the raw and feature files, the simplified config can point into the
+legacy layout with `paths` (relative to `data/spots/[spot]/`):
+
+```yaml
+paths:
+  measurements: "../../zurich/greifensee/measurements/wind_data.csv"
+  features: "../../zurich/greifensee/features"
+```
 
 ## Measurement File Format
 

@@ -1,5 +1,11 @@
 # Feature Selection Lessons Learned: Phase 2 Experiment
 
+> **Superseded (2026-10-31):** Walk-forward tests on Greifensee and Dervio with the unified
+> model showed that no feature selection beats all features; the Phase 1/2 code was removed.
+> The comparisons below used single test splits, partly per-hour models and selections
+> chosen on the same data. See
+> [03_FEATURE_ENGINEERING/FEATURE_RELEVANCE.md](03_FEATURE_ENGINEERING/FEATURE_RELEVANCE.md).
+
 **Date**: November 2025
 **Experiment**: Phase 2 Feature Selection Comparison System
 **Purpose**: Document critical findings from testing 24+ feature selection strategies

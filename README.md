@@ -14,8 +14,8 @@ Windmojo builds custom machine learning wind forecasting models for any location
 
 Windmojo then:
 - Downloads historical weather forecast data around your location
-- Engineers ~160 features from atmospheric patterns using a 9-point circular grid
-- Trains a unified XGBoost model (Spatial Heavy) that learns local wind characteristics
+- Engineers ~380 features from atmospheric patterns using a 9-point circular grid
+- Trains one XGBoost model for all hours on all features, learning local wind characteristics
 - Generates accurate wind forecasts with ~10% improvement over GFS baseline
 - Creates validation diagrams comparing predictions with measurements
 
@@ -132,7 +132,7 @@ Windmojo uses a **9-point circular grid** (8 compass directions + center) to eff
 
 ### Feature Engineering
 
-Windmojo automatically engineers **100-300 features** from the downloaded data:
+Windmojo automatically engineers **~380 features** from the downloaded data:
 
 **Spatial Features:**
 - Pressure gradients in 8 compass directions
@@ -152,16 +152,14 @@ Windmojo automatically engineers **100-300 features** from the downloaded data:
 
 ### Training Pipeline
 
-**Phase 1 - Feature Discovery:**
-- Trains XGBoost with all engineered features
-- Identifies which atmospheric patterns matter most at your location
-- Generates feature importance rankings
+One XGBoost model for all hours (`python cli.py train`):
+- Uses every feature of the pipeline. XGBoost copes with redundant and weak features;
+  a separate feature selection (the former Phase 1/2) brought no gain in walk-forward
+  tests on two lakes
+- Hour of day is a feature (`hour`, `hour_sin`, `hour_cos`), so one model covers the daily cycle
+- Early stopping on every 10th training day; metrics on separate test days
 
-**Phase 2 - Production Model:**
-- Selects top 30-80 features from Phase 1
-- Trains optimized model with regularization
-- Validates on held-out test data
-- Ready for production forecasting
+What matters for the forecast and why: [FEATURE_RELEVANCE.md](research/03_FEATURE_ENGINEERING/FEATURE_RELEVANCE.md)
 
 ### Output
 
@@ -231,7 +229,7 @@ timestamp,dervio speed,dervio direction
 2024-01-01_0100,4.8,175
 ```
 
-After download, feature engineering and feature selection, the spot is moved to
+After download and feature engineering, the spot is moved to
 `data/spots/[spot]/` for `python cli.py train` / `evaluate` — see
 [data/README.md](data/README.md).
 
@@ -278,51 +276,32 @@ uv run python -m windmojo.feature_engineer \
 ```
 *Time: 2-5 minutes*
 
-**Train Phase 1 Model (Feature Discovery):**
+**Move to the new layout, train and evaluate:**
 ```bash
-uv run python -m windmojo.train_phase1_model1 \
-  --config config/lake_como/dervio.yaml \
-  --scope full \
-  --hours 06:00,07:00,08:00,09:00,10:00,11:00,12:00,13:00,14:00,15:00,16:00,17:00,18:00 \
-  --target-column "dervio speed" \
-  --parallel-jobs 4
+uv run python cli.py migrate --from-dir data/lake_como/dervio --to-spot dervio
+# convert data/spots/dervio/input/config.yaml to the simplified format
+uv run python cli.py train --spot dervio
+uv run python cli.py evaluate --spot dervio
 ```
-*Time: 10-20 minutes with 4 parallel jobs*
-
-**Select Features:**
-```bash
-uv run python -m windmojo.feature_selection \
-  --model1-dir data/lake_como/dervio/models/phase1_model1/full \
-  --features-file data/lake_como/dervio/features/dervio_features_phase1.parquet \
-  --output-dir data/lake_como/dervio/models/phase1_model1/full/feature_selections
-```
-*Time: 1 minute*
-
-**Train Phase 2 Production Model:**
-```bash
-uv run python -m windmojo.train_phase2_model2_unified \
-  --config config/lake_como/dervio.yaml \
-  --approach gfs_balanced \
-  --feature-selection data/lake_como/dervio/models/phase1_model1/full/feature_selections/features_gfs_balanced.json \
-  --test-weeks data/lake_como/dervio/test_weeks.json
-```
-*Time: 2-10 minutes*
+*Time: about a minute*
 
 **Generate Forecasts:**
 ```bash
-uv run python -m windmojo.forecast \
-  --config config/lake_como/dervio.yaml \
-  --model data/lake_como/dervio/models/phase2_model2/gfs_balanced/model2_gfs_balanced_unified.json
+uv run python cli.py predict --spot dervio
 ```
 
-**Total pipeline time:** ~45-60 minutes (one-time setup)
-**Daily forecast time:** ~1-2 minutes
+**Total pipeline time:** ~10-20 minutes (one-time setup, mostly the download)
+**Daily forecast time:** under a minute
 
 ---
 
 ## Example Results: Lake Como (Lecco)
 
 Windmojo successfully trained production wind forecasting models for Lecco on Lake Como, Italy.
+
+> Historical results of the former Phase 2 models (feature selections, test weeks).
+> Current models use all features; walk-forward results on Greifensee and Dervio are in
+> [FEATURE_RELEVANCE.md](research/03_FEATURE_ENGINEERING/FEATURE_RELEVANCE.md).
 
 **Input Data:**
 - Location: Lecco, Lake Como (45.857°N, 9.384°E)
@@ -352,15 +331,14 @@ Windmojo successfully trained production wind forecasting models for Lecco on La
 - Summer thermal winds show biggest improvement (21%)
 - GFS struggles with afternoon lake thermals
 - Physics-based features alone (40 features) achieve 4.4% improvement
-- Balanced feature selection (53 features) outperforms pure data-driven approaches
 
 ---
 
 ## Data & File Structure
 
-Windmojo is migrating from an `area/spot` layout to a flat `spots/` layout. Download,
-feature engineering and Phase 1/2 training use the legacy layout; `cli.py train` and
-`cli.py evaluate` use the new one (details in [data/README.md](data/README.md)):
+Windmojo is migrating from an `area/spot` layout to a flat `spots/` layout. Download and
+feature engineering use the legacy layout; `cli.py train`, `evaluate` and `predict` use
+the new one (details in [data/README.md](data/README.md)):
 
 ```
 windmojo/
@@ -374,10 +352,7 @@ windmojo/
 │   │       ├── measurements/
 │   │       │   └── wind_data.csv   # Your wind measurements
 │   │       ├── raw/             # Downloaded forecast data (Parquet)
-│   │       ├── features/        # Engineered features (Parquet)
-│   │       └── models/          # Trained models
-│   │           ├── phase1_model1/     # Feature discovery
-│   │           └── phase2_model2/     # Production models
+│   │       └── features/        # Engineered features (Parquet)
 │   └── spots/                   # New layout
 │       └── [spot]/
 │           ├── input/           # config.yaml + measurements.csv
@@ -388,7 +363,7 @@ windmojo/
 └── windmojo/                    # Source code
     ├── data/                    # Data downloading
     ├── features/                # Feature engineering
-    ├── train/                   # Model training
+    ├── training/                # Model training (cli.py train)
     └── prediction/              # Live forecasts (cli.py predict)
 ```
 
@@ -408,26 +383,12 @@ uv run python -m windmojo.data_fetcher \
 uv run python -m windmojo.feature_engineer \
   --config config/area/spot.yaml
 
-# Train Phase 1 - Feature discovery (with parallelization)
-uv run python -m windmojo.train_phase1_model1 \
-  --config config/area/spot.yaml \
-  --scope full \
-  --hours 06:00,07:00,...,18:00 \
-  --target-column "your_speed_column" \
-  --parallel-jobs 4  # Use 8 for 8-core systems (6-7× speedup)
+# Move the spot to the new layout (then convert its config to the simplified format)
+uv run python cli.py migrate --from-dir data/area/spot --to-spot spot
 
-# Select top features (generates 5 approaches)
-uv run python -m windmojo.feature_selection \
-  --model1-dir data/area/spot/models/phase1_model1/full \
-  --features-file data/area/spot/features/spot_features_phase1.parquet \
-  --output-dir data/area/spot/models/phase1_model1/full/feature_selections
-
-# Train Phase 2 - Production model
-uv run python -m windmojo.train_phase2_model2_unified \
-  --config config/area/spot.yaml \
-  --approach gfs_balanced \
-  --feature-selection data/area/spot/models/phase1_model1/full/feature_selections/features_gfs_balanced.json \
-  --test-weeks data/area/spot/test_weeks.json
+# Train on all features and evaluate on the test days
+uv run python cli.py train --spot spot
+uv run python cli.py evaluate --spot spot
 
 # Generate a live forecast as JSON (production use, new spot layout)
 uv run python cli.py predict --spot spot --output path/to/spot.json
@@ -513,7 +474,7 @@ Each location gets its own configuration file and trained model.
 1. **Data Requirement**: Needs minimum 1 year of wind measurements
 2. **GFS Resolution**: Limited by 0.25° (~25 km) grid resolution
 3. **Forecast Horizon**: Quality degrades beyond 7 days
-4. **Computational Cost**: Training requires 30-60 minutes per location
+4. **Computational Cost**: The download takes 5-15 minutes per location, training under a minute
 5. **Local Effects Only**: Best for locations with strong local wind patterns
 
 ---
@@ -562,16 +523,22 @@ See [LICENSE](LICENSE) file.
 
 Inspired by [karpathy/autoresearch](https://github.com/karpathy/autoresearch) — an autonomous AI agent that modifies code, runs experiments, keeps improvements, and repeats indefinitely. The pattern maps naturally to Windmojo:
 
-- **Agent explores** feature selection from 498 engineered features, XGBoost hyperparameters, new feature combinations, and training data weighting
+- **Agent explores** XGBoost hyperparameters, new features, loss functions for strong wind, and training data weighting
 - **XGBoost trains in seconds** (vs. 5 minutes for LLMs), enabling 1,000+ experiments overnight
 - **Single metric** (MAE on held-out test weeks) provides clear optimization target
-- **Phase 2 already proved** that feature selection matters more than model complexity (30 features beat 150)
+- **Feature selection is settled**: walk-forward tests showed that no subset beats all features ([FEATURE_RELEVANCE.md](research/03_FEATURE_ENGINEERING/FEATURE_RELEVANCE.md))
 
 See [research/05_TOOLS_AND_METHODS/AUTORESEARCH.md](research/05_TOOLS_AND_METHODS/AUTORESEARCH.md) for full analysis.
 
 ---
 
 ## Version History
+
+- **Unreleased**
+  - Training uses all features; Phase 1/2 feature selection and `spatial_heavy` removed
+  - Training and live forecasts get identical features (no outlier capping, capped look-backs)
+  - GFS surface winds (10-180 m) are features again
+  - Early stopping on validation days instead of the test days
 
 - **v0.2.0** (2025-11-27)
   - Unified model architecture (one model for all hours)
