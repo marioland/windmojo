@@ -37,7 +37,7 @@ class FeatureReport:
             "gust_excess",
         ],
         "CYCLICAL": ["_sin", "_cos"],
-        "BINARY": ["is_", "clear_sky_factor"],
+        "BINARY": ["is_"],
         "RAW": [
             # Identified by absence of engineering suffixes
         ],

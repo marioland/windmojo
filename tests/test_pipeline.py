@@ -1,5 +1,7 @@
 """Tests for the feature engineering pipeline."""
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -90,13 +92,19 @@ class TestNoOutlierCapping:
         spiked = raw.copy()
         set_center(spiked, "wind_speed_10m", ["2026-01-10 14:00"], 150.0)
         features = FeatureEngineeringPipeline().transform(spiked)
-        value = features.loc[features["time"] == "2026-01-10 14:00", "wind_speed_10m_center"]
+        value = features.loc[
+            features["time"] == "2026-01-10 14:00", "wind_speed_10m_center"
+        ]
         assert value.item() == 150.0
 
 
 class TestSurfaceCenterWinds:
     def test_center_winds_are_features(self, features):
-        for column in ["wind_speed_10m_center", "wind_gusts_10m_center", "wind_speed_120m_center"]:
+        for column in [
+            "wind_speed_10m_center",
+            "wind_gusts_10m_center",
+            "wind_speed_120m_center",
+        ]:
             assert column in features.columns
 
 
@@ -152,3 +160,43 @@ class TestLiveParity:
             return df[sorted(df.columns)]
 
         pd.testing.assert_frame_equal(forecast_days(live), forecast_days(features))
+
+
+REMOVED_FEATURES = [
+    "day_of_week",
+    "is_weekend",
+    "evapotranspiration_center",
+    "gust_intensity",
+    "saturation_deficit_2m",
+    "clear_sky_factor",
+    "solar_heating_effective",
+    "temp_850_freezing_margin",
+    "pressure_accel",
+    "cloud_trend_3h",
+    "buoyancy_frequency",
+    "gust_10m_lag_1h",
+    "gust_10m_lag_3h",
+    "surface_is_fresh_snow",
+    "is_old_snow",
+    "surface_is_old_snow",
+] + [f"pressure_msl_{point}" for point in LOCATIONS[1:]]
+
+FEATURE_NAMES_FILE = Path(__file__).parent / "feature_names.txt"
+
+
+class TestFeatureSet:
+    def test_removed_features_are_absent(self, raw):
+        with_evapotranspiration = raw.assign(evapotranspiration=0.0)  # older raw files
+        features = FeatureEngineeringPipeline().transform(with_evapotranspiration)
+        assert not set(REMOVED_FEATURES) & set(features.columns)
+
+    def test_feature_names_unchanged(self, features):
+        """
+        Trained models select their features by name. Update feature_names.txt
+        deliberately when the pipeline changes, and retrain the models.
+        """
+        expected = set(FEATURE_NAMES_FILE.read_text().split())
+        actual = set(features.columns)
+        assert (
+            actual == expected
+        ), f"added: {sorted(actual - expected)}, removed: {sorted(expected - actual)}"

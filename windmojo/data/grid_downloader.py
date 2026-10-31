@@ -82,8 +82,7 @@ CENTER_VARIABLES = [
     "direct_normal_irradiance",  # Direct radiation normal to sun
     # Other atmospheric variables
     "visibility",
-    "evapotranspiration",
-    "et0_fao_evapotranspiration",
+    "et0_fao_evapotranspiration",  # ("evapotranspiration" is always 0 in the API)
     "vapour_pressure_deficit",
     "weather_code",
     # Soil variables

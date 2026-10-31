@@ -22,6 +22,14 @@ from windmojo.features.snow_features import SnowCoverFeatures
 
 logger = logging.getLogger(__name__)
 
+# Columns removed at the end of the pipeline: absolute sea-level pressure of
+# the circle points (|r| >= 0.998 with the center, the information is in the
+# pressure_msl_grad_* features computed from them) and evapotranspiration
+# (Open-Meteo always returns 0, still present in older raw files)
+DROPPED_COLUMNS = [
+    f"pressure_msl_{point}" for point in ["n", "ne", "e", "se", "s", "sw", "w", "nw"]
+] + ["evapotranspiration_center"]
+
 
 class FeatureEngineeringPipeline:
     """
@@ -138,6 +146,7 @@ class FeatureEngineeringPipeline:
 
         # Drop the gap-filling rows again
         df = df[df["time"].isin(original_times)].reset_index(drop=True)
+        df = df.drop(columns=DROPPED_COLUMNS, errors="ignore")
 
         logger.info(f"✓ Feature engineering complete: {len(df.columns)} total features")
 
@@ -901,18 +910,6 @@ class InteractionFeatures:
                     df["wind_speed_1000hPa_center"] - lag_6h
                 )
 
-        # Cloud trend (rate of cloud change)
-        if "cloud_cover_center" in df.columns:
-            lag_3h = df["cloud_cover_center"].shift(3)
-            if lag_3h is not None:
-                df["cloud_trend_3h"] = (df["cloud_cover_center"] - lag_3h) / 3.0
-
-        # Pressure tendency stability (is pressure change accelerating?)
-        if "surface_pressure_center" in df.columns:
-            change_1h = df["surface_pressure_center"].diff(1)
-            change_1h_prev = change_1h.shift(1)
-            df["pressure_accel"] = change_1h - change_1h_prev
-
         return df
 
     def _thermodynamic_features(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -928,10 +925,6 @@ class InteractionFeatures:
             df["dewpoint_depression_2m"] = (
                 df["temperature_2m_center"] - df["dewpoint_2m_center"]
             )
-
-        # Saturation deficit
-        if "relative_humidity_2m_center" in df.columns:
-            df["saturation_deficit_2m"] = 100 - df["relative_humidity_2m_center"]
 
         # Level of free convection proxy (850-700 hPa temp diff + moisture)
         if all(
@@ -997,19 +990,6 @@ class InteractionFeatures:
             dir_diff = ((dir_diff + 180) % 360) - 180
             df["wind_dir_shear_10m_80m"] = dir_diff
 
-        # Gust intensity (already have gust_factor and gust_excess, add more)
-        if all(
-            col in df.columns
-            for col in ["wind_gusts_10m_center", "wind_speed_10m_center"]
-        ):
-            # Gust intensity = gusts / mean wind (turbulence indicator)
-            df["gust_intensity"] = df["wind_gusts_10m_center"] / (
-                df["wind_speed_10m_center"] + 0.1
-            )
-
-            # Gustiness (how much gusts exceed mean wind, in m/s)
-            # Already have gust_excess, so skip
-
         # Wind acceleration (6h and 12h)
         if "wind_speed_10m_center" in df.columns:
             # 6-hour wind change
@@ -1074,10 +1054,8 @@ class InteractionFeatures:
             # Positive temp gradient = stable, negative = unstable
             df["wind_temp_coupling_10m"] = df["wind_speed_10m_center"] * temp_grad
 
-        # Gust lag features (gust persistence)
+        # Gust change (gust lags are in LagFeatures)
         if "wind_gusts_10m_center" in df.columns:
-            df["gust_10m_lag_1h"] = df["wind_gusts_10m_center"].shift(1)
-            df["gust_10m_lag_3h"] = df["wind_gusts_10m_center"].shift(3)
             df["gust_10m_change_3h"] = df["wind_gusts_10m_center"].diff(3)
 
         return df
@@ -1137,7 +1115,6 @@ class TemporalFeatures:
         # Extract time components
         df["hour"] = df["time"].dt.hour
         df["month"] = df["time"].dt.month
-        df["day_of_week"] = df["time"].dt.dayofweek
 
         # Cyclical encoding: hour of day
         df["hour_sin"] = np.sin(2 * np.pi * df["hour"] / 24)
@@ -1157,9 +1134,6 @@ class TemporalFeatures:
         df["is_summer"] = (df["month"].isin([6, 7, 8])).astype(int)
         df["is_winter"] = (df["month"].isin([12, 1, 2])).astype(int)
         df["is_shoulder"] = (df["month"].isin([3, 4, 5, 9, 10, 11])).astype(int)
-
-        # Binary indicator: weekend
-        df["is_weekend"] = (df["day_of_week"] >= 5).astype(int)
 
         # Wind direction encoding (circular variable)
         if "wind_direction_10m_center" in df.columns:
@@ -1302,19 +1276,6 @@ class PhysicsFeatures:
         - Lake thermal effects
         - Wind-temperature interactions
         """
-        # Clear sky factor (inverse of cloud cover)
-        if "cloud_cover_center" in df.columns:
-            df["clear_sky_factor"] = 1 - (df["cloud_cover_center"] / 100)
-
-        # Effective solar heating
-        if all(
-            col in df.columns
-            for col in ["shortwave_radiation_center", "clear_sky_factor"]
-        ):
-            df["solar_heating_effective"] = (
-                df["shortwave_radiation_center"] * df["clear_sky_factor"]
-            )
-
         # AM/PM Sunshine Hours (cumulative daily)
         # Define "sunshine" as radiation > 120 W/m² (clear-sky threshold)
         if "shortwave_radiation_center" in df.columns and "hour" in df.columns:
@@ -1349,26 +1310,17 @@ class PhysicsFeatures:
                     "Cannot calculate sunshine hours: 'time' column not found"
                 )
 
-        # Daytime heating potential
+        # Daytime heating potential and nighttime cooling potential
         if all(
             col in df.columns
-            for col in ["temperature_2m_center", "hour_sin", "clear_sky_factor"]
+            for col in ["temperature_2m_center", "hour_sin", "cloud_cover_center"]
         ):
+            clear_sky = 1 - df["cloud_cover_center"] / 100
             df["daytime_heating_potential"] = (
-                df["temperature_2m_center"]
-                * np.maximum(0, df["hour_sin"])
-                * df["clear_sky_factor"]
+                df["temperature_2m_center"] * np.maximum(0, df["hour_sin"]) * clear_sky
             )
-
-        # Nighttime cooling potential
-        if all(
-            col in df.columns
-            for col in ["temperature_2m_center", "hour_cos", "clear_sky_factor"]
-        ):
             df["nighttime_cooling_potential"] = (
-                df["temperature_2m_center"]
-                * np.maximum(0, -df["hour_cos"])
-                * df["clear_sky_factor"]
+                df["temperature_2m_center"] * np.maximum(0, -df["hour_cos"]) * clear_sky
             )
 
         # Temperature × seasonal interaction
@@ -1403,17 +1355,6 @@ class PhysicsFeatures:
                 + 1e-10
             )
             df["thermal_stability"] = temp_norm * df["wind_shear_total"]
-
-        # Buoyancy frequency (vertical stability indicator)
-        if all(
-            col in df.columns
-            for col in ["temperature_2m_center", "temperature_2m_center_change_1h"]
-        ):
-            # Simplified buoyancy: (g/T) × dT/dt
-            T_kelvin = df["temperature_2m_center"] + 273.15
-            df["buoyancy_frequency"] = (self.GRAVITY / T_kelvin) * df[
-                "temperature_2m_center_change_1h"
-            ]
 
         # Richardson number (turbulence indicator)
         # Ri = (g/T × dT/dz) / (dU/dz)²

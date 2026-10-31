@@ -178,11 +178,6 @@ class SnowCoverFeatures:
                 (df["is_snow_on_ground"] == 1) & (df["snow_age_hours"] < 24)
             ).astype(int)
 
-            # Old snow: > 7 days old
-            df["is_old_snow"] = (
-                (df["is_snow_on_ground"] == 1) & (df["snow_age_hours"] > 168)
-            ).astype(int)
-
         # Active melting detection
         if all(
             col in df.columns
@@ -204,7 +199,7 @@ class SnowCoverFeatures:
             col in df.columns
             for col in [
                 "is_fresh_snow",
-                "is_old_snow",
+                "is_snow_on_ground",
                 "hours_since_rain",
                 "temperature_2m_center",
             ]
@@ -213,8 +208,8 @@ class SnowCoverFeatures:
             def classify_surface(row):
                 if row["is_fresh_snow"] == 1:
                     return "fresh_snow"
-                elif row["is_old_snow"] == 1:
-                    return "old_snow"
+                elif row["is_snow_on_ground"] == 1:
+                    return "snow"
                 elif row["hours_since_rain"] < 24:
                     return "wet_ground"
                 elif row["temperature_2m_center"] < 0:
@@ -224,11 +219,7 @@ class SnowCoverFeatures:
 
             df["surface_state"] = df.apply(classify_surface, axis=1)
 
-            # One-hot encode surface state
-            df["surface_is_fresh_snow"] = (df["surface_state"] == "fresh_snow").astype(
-                int
-            )
-            df["surface_is_old_snow"] = (df["surface_state"] == "old_snow").astype(int)
+            # One-hot encode surface state (snow states: is_fresh_snow, is_snow_on_ground)
             df["surface_is_wet"] = (df["surface_state"] == "wet_ground").astype(int)
             df["surface_is_frozen"] = (df["surface_state"] == "frozen_ground").astype(
                 int
@@ -260,9 +251,6 @@ class SnowCoverFeatures:
             df["temp_850_very_cold"] = (df["temperature_850hPa_center"] < -5).astype(
                 int
             )
-
-            # Distance from freezing
-            df["temp_850_freezing_margin"] = df["temperature_850hPa_center"]
 
         # High-altitude temperature (700 hPa ~ 3000m)
         if "temperature_700hPa_center" in df.columns:
@@ -309,7 +297,8 @@ class SnowCoverFeatures:
 
         Albedo values:
         - Fresh snow (< 24h): 0.8-0.9
-        - Old snow (> 7d): 0.4-0.6
+        - Older snow: decreasing by 0.03 per day (snow age is capped at
+          MAX_HOURS_SINCE_EVENT, so the minimum reached is 0.64)
         - Bare ground: 0.15-0.20
 
         Args:
@@ -324,7 +313,7 @@ class SnowCoverFeatures:
         # Snow present: albedo decreases with age
         snow_mask = is_snow_on_ground == 1
         if snow_mask.any():
-            # Start at 0.85, decay to 0.40 over 14 days
+            # Start at 0.85, minus 0.03 per day of snow age
             # albedo = 0.85 - 0.03 * (age_in_days)
             age_in_days = snow_age_hours / 24.0
             albedo[snow_mask] = np.clip(
