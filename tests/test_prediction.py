@@ -16,6 +16,7 @@ from windmojo.prediction import forecast as forecast_module
 from windmojo.prediction.forecast import (
     apply_forecast_window,
     archive_forecast,
+    archive_raw_forecast,
     download_forecast,
     forecast_to_dict,
     save_forecast_json,
@@ -202,6 +203,46 @@ class TestArchiveForecast:
         later = {**data, "generated_at": "2026-10-31T23:15:02+01:00"}
         archive_forecast(later, tmp_path / "archive")
         assert len(list((tmp_path / "archive" / "2026-10").iterdir())) == 2
+
+
+class TestArchiveRawForecast:
+    """Tests for archive_raw_forecast."""
+
+    def raw(self):
+        times = pd.date_range("2026-10-24 06:00", "2026-11-06 23:00", freq="h")
+        times = times[times.hour >= 6]
+        return pd.DataFrame(
+            {"time": times, "location": "center", "wind_speed_10m": 10.0}
+        )
+
+    def test_keeps_only_requested_lead_days_once_per_day(self, tmp_path):
+        downloaded = datetime.datetime(
+            2026, 10, 31, 5, 15, tzinfo=datetime.timezone.utc
+        )
+        path = archive_raw_forecast(
+            self.raw(), datetime.date(2026, 10, 31), [1, 2], tmp_path, downloaded
+        )
+        assert path == tmp_path / "2026-10" / "2026-10-31.parquet"
+
+        archived = pd.read_parquet(path)
+        assert sorted(archived["time"].dt.date.unique()) == [
+            datetime.date(2026, 11, 1),
+            datetime.date(2026, 11, 2),
+        ]
+        assert sorted(archived["lead_days"].unique()) == [1, 2]
+        assert (archived["downloaded_at"] == pd.Timestamp(downloaded)).all()
+
+        # A later run on the same day keeps the first file
+        later = downloaded + datetime.timedelta(hours=12)
+        assert (
+            archive_raw_forecast(
+                self.raw(), datetime.date(2026, 10, 31), [1, 2], tmp_path, later
+            )
+            is None
+        )
+        assert (
+            pd.read_parquet(path)["downloaded_at"] == pd.Timestamp(downloaded)
+        ).all()
 
 
 class TestTrainerMedians:

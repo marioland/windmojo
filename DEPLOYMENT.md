@@ -118,7 +118,7 @@ python cli.py predict --spot greifensee --output ~/public_html/wind/greifensee.j
 | `--config`, `-c` | `data/spots/<spot>/input/config.yaml` | Spot configuration |
 | `--output`, `-o` | `data/spots/<spot>/forecasts/forecast.json` (`paths.forecast` in the config) | JSON output file |
 | `--history-days` | 7 | Past days downloaded for lag and rolling features (the longest model feature is a 7-day precipitation sum) |
-| `--archive/--no-archive` | archive | Keep a copy of each forecast in `data/spots/<spot>/forecasts/archive/<YYYY-MM>/<time>.json` (`paths.forecast_archive`) for later verification against measurements |
+| `--archive/--no-archive` | archive | Keep a copy of each forecast in `data/spots/<spot>/forecasts/archive/<YYYY-MM>/<time>.json` (`paths.forecast_archive`) for later verification against measurements. The first run of a day also keeps the raw weather forecast for tomorrow and the day after (`forecast.raw_archive_days`, default `[1, 2]`) in `forecasts/archive_raw/<YYYY-MM>/<date>.parquet`, about 45 MB per year: the Open-Meteo Previous Runs API lacks pressure levels, cloud layers and soil variables, so these files are the only complete old forecasts for training on longer lead times. |
 
 What it does (`windmojo/prediction/forecast.py`):
 

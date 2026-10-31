@@ -147,6 +147,7 @@ def get_paths(config: Dict[str, Any]) -> Dict[str, Path]:
         "metadata": "models/metadata.json",
         "forecast": "forecasts/forecast.json",
         "forecast_archive": "forecasts/archive",
+        "forecast_raw_archive": "forecasts/archive_raw",
     }
 
     # Override with custom paths from config if present
@@ -310,7 +311,13 @@ def get_forecast_config(config: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with forecast parameters
     """
-    defaults = {"initialization_time": "06:00", "horizon_hours": 18, "days_ahead": 7}
+    defaults = {
+        "initialization_time": "06:00",
+        "horizon_hours": 18,
+        "days_ahead": 7,
+        # Lead days whose raw weather forecast predict keeps (training data)
+        "raw_archive_days": [1, 2],
+    }
 
     if "forecast" in config:
         defaults.update(config["forecast"])

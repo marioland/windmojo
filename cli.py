@@ -252,7 +252,8 @@ def evaluate(spot, config):
 @click.option('--output', '-o', type=click.Path(), help='JSON output file (default: data/spots/{spot}/forecasts/forecast.json)')
 @click.option('--history-days', default=7, show_default=True, help='Past days downloaded for lag and rolling features')
 @click.option('--archive/--no-archive', default=True, show_default=True,
-              help='Keep a copy in the forecast archive (paths.forecast_archive) for later verification')
+              help='Keep the forecast JSON (paths.forecast_archive) and, once per day, the raw weather '
+                   'forecast of forecast.raw_archive_days (paths.forecast_raw_archive)')
 def predict(spot, config, output, history_days, archive):
     """Create a live forecast and export it as JSON (see DEPLOYMENT.md)."""
     from windmojo.config import load_config, get_paths
@@ -285,7 +286,10 @@ def predict(spot, config, output, history_days, archive):
 
     # Download, features, predict
     click.echo("2. Downloading forecast and predicting...")
-    result = predict_forecast(cfg, trainer, history_days=history_days)
+    result = predict_forecast(cfg, trainer, history_days=history_days,
+                              raw_archive_dir=paths['forecast_raw_archive'] if archive else None)
+    if result.attrs.get('raw_archive'):
+        click.echo(f"   Raw forecast archived: {result.attrs['raw_archive']}")
 
     # Export
     click.echo("3. Writing JSON...")

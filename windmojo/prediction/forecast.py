@@ -11,7 +11,7 @@ import logging
 import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -122,6 +122,7 @@ def predict_forecast(
     today: Optional[date] = None,
     history_days: int = DEFAULT_HISTORY_DAYS,
     client: Optional[OpenMeteoClient] = None,
+    raw_archive_dir: Optional[Path] = None,
 ) -> pd.DataFrame:
     """
     Create a wind forecast from today on.
@@ -132,22 +133,32 @@ def predict_forecast(
         today: First forecast day (default: today in the spot's timezone)
         history_days: Past days downloaded for lag and rolling features
         client: Optional OpenMeteoClient
+        raw_archive_dir: If given, keep the raw weather forecast of the days
+            in forecast.raw_archive_days there (see archive_raw_forecast)
 
     Returns:
         DataFrame with time, wind_speed (model, m/s) and the Open-Meteo
         values at the center point (openmeteo_wind_speed, openmeteo_gusts in
         m/s, wind_direction in degrees). attrs["missing_features"] lists the
-        model features missing in the forecast data (filled with medians).
+        model features missing in the forecast data (filled with medians),
+        attrs["raw_archive"] the archived raw file (None if not written).
     """
     timezone = pytz.timezone(config.get("timezone", "UTC"))
-    today = today or datetime.now(timezone).date()
-    days_ahead = get_forecast_config(config)["days_ahead"]
+    downloaded_at = datetime.now(timezone)
+    today = today or downloaded_at.date()
+    forecast_cfg = get_forecast_config(config)
+    days_ahead = forecast_cfg["days_ahead"]
 
     start = today - timedelta(days=history_days)
     end = today + timedelta(days=days_ahead - 1)
     logger.info(f"Forecast {today} to {end} (history from {start})")
 
     raw = download_forecast(config, start.isoformat(), end.isoformat(), client)
+    raw_archive = None
+    if raw_archive_dir is not None:
+        raw_archive = archive_raw_forecast(
+            raw, today, forecast_cfg["raw_archive_days"], raw_archive_dir, downloaded_at
+        )
     features = FeatureEngineeringPipeline().transform(raw)
     features = features[features["time"].dt.date >= today].reset_index(drop=True)
 
@@ -173,8 +184,49 @@ def predict_forecast(
     result["openmeteo_gusts"] = result["time"].map(center["wind_gusts_10m"]) * KMH_TO_MS
     result["wind_direction"] = result["time"].map(center["wind_direction_10m"])
     result.attrs["missing_features"] = missing
+    result.attrs["raw_archive"] = raw_archive
 
     return result
+
+
+def archive_raw_forecast(
+    raw: pd.DataFrame,
+    today: date,
+    days: List[int],
+    archive_dir: Path,
+    downloaded_at: datetime,
+) -> Optional[Path]:
+    """
+    Keep the raw weather forecast of some days ahead, once per day.
+
+    The Open-Meteo Previous Runs API offers old forecasts only for part of the
+    variables (no pressure levels, cloud layers, soil). These files collect
+    complete forecasts with all variables for training on lead times > 0.
+    The first run of a day writes the file, later runs keep it.
+
+    Args:
+        raw: Downloaded forecast in the raw Parquet format (all grid points)
+        today: Day of the run
+        days: Lead days to keep, e.g. [1, 2] = tomorrow and the day after
+        archive_dir: Archive root directory
+        downloaded_at: Time of the download (stored per row)
+
+    Returns:
+        Path of the written file, or None if today's file already exists
+    """
+    path = Path(archive_dir) / f"{today:%Y-%m}" / f"{today:%Y-%m-%d}.parquet"
+    if path.exists():
+        return None
+
+    lead_days = (raw["time"].dt.normalize() - pd.Timestamp(today)).dt.days
+    archive = raw[lead_days.isin(days)].assign(
+        lead_days=lead_days, downloaded_at=pd.Timestamp(downloaded_at)
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_name(f"{path.stem}.tmp.parquet")
+    archive.to_parquet(tmp_path, index=False)
+    tmp_path.replace(path)
+    return path
 
 
 def forecast_to_dict(

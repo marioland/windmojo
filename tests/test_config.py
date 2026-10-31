@@ -112,6 +112,7 @@ class TestGetPaths:
             "metadata",
             "forecast",
             "forecast_archive",
+            "forecast_raw_archive",
         }
         assert set(paths.keys()) == expected_keys
 
@@ -192,6 +193,7 @@ class TestGetForecastConfig:
         assert forecast["initialization_time"] == "06:00"
         assert forecast["horizon_hours"] == 18
         assert forecast["days_ahead"] == 7
+        assert forecast["raw_archive_days"] == [1, 2]
 
     def test_custom_override(self):
         config = make_valid_config(forecast={"days_ahead": 3})
