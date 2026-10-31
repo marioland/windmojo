@@ -170,7 +170,7 @@ def evaluate(spot, config):
 
     # Load model
     click.echo("1. Loading trained model...")
-    trainer = UnifiedTrainer(cfg['training'])
+    trainer = UnifiedTrainer(cfg.get('training', {}))
     trainer.load(paths['model'], paths['metadata'])
 
     # Load measurements
