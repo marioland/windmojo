@@ -113,8 +113,11 @@ class ForecastApp:
         window = get_forecast_config(self.config)
         start = int(window["initialization_time"].split(":")[0])
         hours = [(start + i) % 24 for i in range(window["horizon_hours"])]
+        hindcast_dir = self.paths.get("forecast_hindcast")
         return {
-            "days": history(runs, self.measurements(), self.now().date(), days, hours)
+            "days": history(
+                runs, self.measurements(), self.now().date(), days, hours, hindcast_dir
+            )
         }
 
     def forecast_csv(self) -> Tuple[str, str]:

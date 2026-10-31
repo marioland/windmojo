@@ -141,15 +141,19 @@ def predict_forecast(
         values at the center point (openmeteo_wind_speed, openmeteo_gusts in
         m/s, wind_direction in degrees). attrs["missing_features"] lists the
         model features missing in the forecast data (filled with medians),
-        attrs["raw_archive"] the archived raw file (None if not written).
+        attrs["raw_archive"] the archived raw file (None if not written),
+        attrs["hindcast"] the same columns for the past forecast.hindcast_days
+        days: what the model says for them with the weather data of the day.
     """
     timezone = pytz.timezone(config.get("timezone", "UTC"))
     downloaded_at = datetime.now(timezone)
     today = today or downloaded_at.date()
     forecast_cfg = get_forecast_config(config)
     days_ahead = forecast_cfg["days_ahead"]
+    hindcast_days = forecast_cfg["hindcast_days"]
 
-    start = today - timedelta(days=history_days)
+    # The hindcast days need the same history as today
+    start = today - timedelta(days=history_days + hindcast_days)
     end = today + timedelta(days=days_ahead - 1)
     logger.info(f"Forecast {today} to {end} (history from {start})")
 
@@ -160,7 +164,6 @@ def predict_forecast(
             raw, today, forecast_cfg["raw_archive_days"], raw_archive_dir, downloaded_at
         )
     features = FeatureEngineeringPipeline().transform(raw)
-    features = features[features["time"].dt.date >= today].reset_index(drop=True)
 
     missing = [f for f in trainer.feature_columns if f not in features.columns]
     if missing:
@@ -172,10 +175,26 @@ def predict_forecast(
         features = features.assign(**{f: np.nan for f in missing})
 
     center = raw[raw["location"] == "center"].set_index("time")
+    day = features["time"].dt.date
+    result = _predictions(features[day >= today], trainer, center)
+    result.attrs["missing_features"] = missing
+    result.attrs["raw_archive"] = raw_archive
+    hindcast_start = today - timedelta(days=hindcast_days)
+    result.attrs["hindcast"] = _predictions(
+        features[(day >= hindcast_start) & (day < today)], trainer, center
+    )
+
+    return result
+
+
+def _predictions(features: pd.DataFrame, trainer, center: pd.DataFrame) -> pd.DataFrame:
+    """Model forecast and Open-Meteo values at the center point for the given hours."""
     result = pd.DataFrame(
         {
-            "time": features["time"],
-            "wind_speed": np.clip(trainer.predict(features), 0, None),
+            "time": features["time"].to_numpy(),
+            "wind_speed": (
+                np.clip(trainer.predict(features), 0, None) if len(features) else []
+            ),
         }
     )
     result["openmeteo_wind_speed"] = (
@@ -183,10 +202,52 @@ def predict_forecast(
     )
     result["openmeteo_gusts"] = result["time"].map(center["wind_gusts_10m"]) * KMH_TO_MS
     result["wind_direction"] = result["time"].map(center["wind_direction_10m"])
-    result.attrs["missing_features"] = missing
-    result.attrs["raw_archive"] = raw_archive
-
     return result
+
+
+def archive_hindcast(
+    hindcast: pd.DataFrame, trainer, archive_dir: Path, generated_at: str
+) -> List[Path]:
+    """
+    Keep the hindcast of past days, one file per day (a later run replaces it).
+
+    Args:
+        hindcast: attrs["hindcast"] of predict_forecast()
+        trainer: Model used (its training_history["data_until"] is stored:
+            days up to then were part of the training data)
+        archive_dir: Archive root directory (paths["forecast_hindcast"])
+        generated_at: Creation time of the run (ISO format)
+
+    Returns:
+        Written files
+    """
+    written = []
+    for day, hours in hindcast.groupby(hindcast["time"].dt.date):
+        data = {
+            "date": day.isoformat(),
+            "generated_at": generated_at,
+            "model_data_until": trainer.training_history.get("data_until"),
+            "hours": [
+                {
+                    "time": row.time.strftime("%Y-%m-%dT%H:%M"),
+                    "wind_speed": (
+                        None
+                        if pd.isna(row.wind_speed)
+                        else round(float(row.wind_speed), 2)
+                    ),
+                    "openmeteo_wind_speed": (
+                        None
+                        if pd.isna(row.openmeteo_wind_speed)
+                        else round(float(row.openmeteo_wind_speed), 2)
+                    ),
+                }
+                for row in hours.itertuples()
+            ],
+        }
+        path = Path(archive_dir) / f"{day:%Y-%m}" / f"{day:%Y-%m-%d}.json"
+        save_forecast_json(data, path)
+        written.append(path)
+    return written
 
 
 def archive_raw_forecast(
@@ -339,7 +400,15 @@ def run_forecast(
     data = forecast_to_dict(result, config, trainer)
     output = Path(output) if output else paths["forecast"]
     save_forecast_json(data, output)
+    hindcast = result.attrs["hindcast"]
     return {
+        "hindcast": (
+            archive_hindcast(
+                hindcast, trainer, paths["forecast_hindcast"], data["generated_at"]
+            )
+            if archive
+            else []
+        ),
         "data": data,
         "output": output,
         "hours": result,

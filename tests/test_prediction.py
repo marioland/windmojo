@@ -16,9 +16,11 @@ from windmojo.prediction import forecast as forecast_module
 from windmojo.prediction.forecast import (
     apply_forecast_window,
     archive_forecast,
+    archive_hindcast,
     archive_raw_forecast,
     download_forecast,
     forecast_to_dict,
+    predict_forecast,
     save_forecast_json,
 )
 from windmojo.training import UnifiedTrainer
@@ -243,6 +245,58 @@ class TestArchiveRawForecast:
         assert (
             pd.read_parquet(path)["downloaded_at"] == pd.Timestamp(downloaded)
         ).all()
+
+
+class HourTrainer:
+    """Stand-in for UnifiedTrainer: predicts the hour of day."""
+
+    feature_columns = ["hour"]
+    training_history = {"data_until": "2026-10-25"}
+
+    def predict(self, X):
+        return X["hour"].to_numpy(dtype=float)
+
+
+class TestHindcast:
+    """predict_forecast also computes the past days with their weather data."""
+
+    @pytest.fixture(autouse=True)
+    def no_sleep(self, monkeypatch):
+        monkeypatch.setattr(forecast_module.time, "sleep", lambda s: None)
+
+    @pytest.mark.filterwarnings("ignore::pandas.errors.PerformanceWarning")
+    def test_past_days_with_full_history(self, valid_config, tmp_path):
+        config = {
+            **valid_config,
+            "timezone": "Europe/Zurich",
+            "forecast": {"days_ahead": 2},
+        }
+        client = FakeClient()
+        result = predict_forecast(
+            config, HourTrainer(), today=datetime.date(2026, 10, 31), client=client
+        )
+        # 7 hindcast days need 7 more days of history
+        assert client.calls[0]["start"] == "2026-10-17"
+        assert result["time"].dt.date.min() == datetime.date(2026, 10, 31)
+
+        hindcast = result.attrs["hindcast"]
+        days = sorted(hindcast["time"].dt.date.unique())
+        assert days[0] == datetime.date(2026, 10, 24) and days[-1] == datetime.date(
+            2026, 10, 30
+        )
+        assert (hindcast["wind_speed"] == hindcast["time"].dt.hour).all()
+
+        written = archive_hindcast(
+            hindcast, HourTrainer(), tmp_path, "2026-10-31T17:00:00+01:00"
+        )
+        assert len(written) == 7
+        stored = json.loads((tmp_path / "2026-10" / "2026-10-30.json").read_text())
+        assert stored["model_data_until"] == "2026-10-25"
+        assert stored["hours"][0] == {
+            "time": "2026-10-30T06:00",
+            "wind_speed": 6.0,
+            "openmeteo_wind_speed": 0.28,
+        }
 
 
 class TestTrainerMedians:

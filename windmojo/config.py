@@ -148,6 +148,7 @@ def get_paths(config: Dict[str, Any]) -> Dict[str, Path]:
         "forecast": "forecasts/forecast.json",
         "forecast_archive": "forecasts/archive",
         "forecast_raw_archive": "forecasts/archive_raw",
+        "forecast_hindcast": "forecasts/hindcast",
     }
 
     # Override with custom paths from config if present
@@ -317,6 +318,8 @@ def get_forecast_config(config: Dict[str, Any]) -> Dict[str, Any]:
         "days_ahead": 7,
         # Lead days whose raw weather forecast predict keeps (training data)
         "raw_archive_days": [1, 2],
+        # Past days that predict also computes with their weather data (hindcast)
+        "hindcast_days": 7,
     }
 
     if "forecast" in config:

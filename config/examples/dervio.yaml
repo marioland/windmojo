@@ -65,6 +65,7 @@ forecast:
   initialization_time: "06:00"
   horizon_hours: 18
   days_ahead: 7                    # Days forecast by `predict` (max. 16; 3 = today + 2 days)
+  hindcast_days: 7                 # Past days `predict` also computes with their weather data
 
 # Update button of `cli.py serve` (optional): script that refreshes the measurements,
 # run with the same Python from the repository root

@@ -113,6 +113,7 @@ class TestGetPaths:
             "forecast",
             "forecast_archive",
             "forecast_raw_archive",
+            "forecast_hindcast",
         }
         assert set(paths.keys()) == expected_keys
 

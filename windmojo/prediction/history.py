@@ -66,6 +66,26 @@ def forecast_for_day(runs: List[Dict[str, Any]], day: date) -> Optional[Dict[str
     }
 
 
+def load_hindcast(hindcast_dir: Optional[Path], day: date) -> Optional[Dict[str, Any]]:
+    """
+    Hindcast of a past day (archive_hindcast), or None.
+
+    Args:
+        hindcast_dir: Hindcast directory (paths["forecast_hindcast"]), or None
+        day: Day of interest
+
+    Returns:
+        {"date", "generated_at", "model_data_until", "hours"} or None
+    """
+    if hindcast_dir is None:
+        return None
+    path = Path(hindcast_dir) / f"{day:%Y-%m}" / f"{day:%Y-%m-%d}.json"
+    try:
+        return json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
 def load_measurements(config: Dict[str, Any], path: Path) -> pd.DataFrame:
     """
     Load measurements as hourly m/s values.
@@ -117,6 +137,7 @@ def history(
     today: date,
     days: int = 7,
     hours_of_day: Optional[List[int]] = None,
+    hindcast_dir: Optional[Path] = None,
 ) -> List[Dict[str, Any]]:
     """
     Past days (and today so far) as forecast and as measured.
@@ -128,18 +149,27 @@ def history(
         days: Number of days before today
         hours_of_day: Hours with measurements to include (e.g. the forecast
             window 6..23); all if None
+        hindcast_dir: Hindcasts (archive_hindcast): what the model says for
+            the day with its weather data, added as hindcast_speed
 
     Returns:
-        One entry per day with a forecast or measurements, oldest first:
-        {"date", "forecast_generated_at", "hours": [{time, wind_speed,
-        openmeteo_wind_speed, openmeteo_gusts, wind_direction,
-        measured_speed, measured_gust, measured_direction}]}
+        One entry per day with a forecast, hindcast or measurements, oldest
+        first: {"date", "forecast_generated_at", "hindcast_generated_at",
+        "hindcast_in_training" (day was part of the model's training data),
+        "hours": [{time, wind_speed, openmeteo_wind_speed, openmeteo_gusts,
+        wind_direction, hindcast_speed, measured_speed, measured_gust,
+        measured_direction}]}
     """
     result = []
     for offset in range(days, -1, -1):
         day = today - timedelta(days=offset)
         forecast = forecast_for_day(runs, day)
         hours = {h["time"]: dict(h) for h in (forecast["hours"] if forecast else [])}
+        hindcast = load_hindcast(hindcast_dir, day)
+        for h in hindcast["hours"] if hindcast else []:
+            row = hours.setdefault(h["time"], {"time": h["time"]})
+            row["hindcast_speed"] = h["wind_speed"]
+            row.setdefault("openmeteo_wind_speed", h.get("openmeteo_wind_speed"))
         on_day = measurements[measurements.index.normalize() == pd.Timestamp(day)]
         if hours_of_day is not None:
             on_day = on_day[on_day.index.hour.isin(hours_of_day)]
@@ -154,6 +184,12 @@ def history(
             {
                 "date": day.isoformat(),
                 "forecast_generated_at": forecast["generated_at"] if forecast else None,
+                "hindcast_generated_at": hindcast["generated_at"] if hindcast else None,
+                "hindcast_in_training": bool(
+                    hindcast
+                    and hindcast.get("model_data_until")
+                    and day.isoformat() <= hindcast["model_data_until"]
+                ),
                 "hours": rows,
             }
         )
@@ -180,6 +216,7 @@ def with_measurements(
 CSV_COLUMNS = [
     ("time", "time"),
     ("wind_speed", "windmojo_m_s"),
+    ("hindcast_speed", "windmojo_hindcast_m_s"),
     ("openmeteo_wind_speed", "openmeteo_m_s"),
     ("openmeteo_gusts", "openmeteo_gusts_m_s"),
     ("wind_direction", "openmeteo_direction_deg"),

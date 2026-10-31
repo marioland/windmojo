@@ -94,6 +94,7 @@
     { key: "openmeteo_gusts", color: "var(--gust)", dash: "2 3", width: 1.5, label: "Böen (Open-Meteo)" },
     { key: "openmeteo_wind_speed", color: "var(--openmeteo)", dash: "6 4", width: 1.8, label: "Open-Meteo (Wettermodell)" },
     { key: "wind_speed", color: "var(--model)", dash: "", width: 2.6, label: "Windmojo (lokales Modell)" },
+    { key: "hindcast_speed", color: "var(--model)", dash: "2 4", width: 2, label: "Windmojo nachträglich (Wetterdaten des Tages)" },
     { key: "measured_speed", color: "var(--measured)", dash: "", width: 2.2, label: "Gemessen" }
   ];
   var WEEKDAYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
@@ -228,6 +229,7 @@
   function table(day, now) {
     var scale = 0;
     var measured = present(day.hours, "measured_speed");
+    var hindcast = present(day.hours, "hindcast_speed");
     day.hours.forEach(function (h) { scale = Math.max(scale, h.wind_speed || 0); });
     var rows = day.hours.map(function (h) {
       var isPast = now && h.time.slice(0, 13) < now.slice(0, 13);
@@ -238,6 +240,7 @@
         "<td>" + arrow(h.wind_direction) + "</td>" +
         "<td><strong>" + fmt(h.wind_speed) + "</strong></td>" +
         '<td class="bar"><span style="width:' + w + '%"></span></td>' +
+        (hindcast ? "<td>" + fmt(h.hindcast_speed) + "</td>" : "") +
         "<td>" + fmt(h.openmeteo_wind_speed) + "</td>" +
         "<td>" + fmt(h.openmeteo_gusts) + "</td>" +
         (measured ? '<td class="measured">' + fmt(h.measured_speed) + "</td><td>" + fmt(h.measured_gust) +
@@ -245,6 +248,7 @@
     }).join("");
     return '<div class="scroll"><table>' +
       '<thead><tr><th class="hour">Zeit</th><th>Richtung</th><th>Windmojo</th><th class="bar"></th>' +
+      (hindcast ? "<th>Nachträglich</th>" : "") +
       "<th>Open-Meteo</th><th>Böen</th>" +
       (measured ? "<th>Gemessen</th><th>Böen gem.</th><th>Richtung gem.</th>" : "") +
       "</tr></thead><tbody>" + rows + "</tbody></table></div>";
@@ -276,18 +280,22 @@
 
   function history(today) {
     var days = past.filter(function (d) { return d.date < today; }).reverse();
-    var html = '<div class="history"><h2>Rückblick</h2><div class="meta">Prognose, wie sie damals ' +
-      "angezeigt wurde, und Messung. Füllt sich mit jeder Aktualisierung.</div>";
+    var html = '<div class="history"><h2>Rückblick</h2><div class="meta">Durchgezogen: Prognose, wie sie ' +
+      "damals angezeigt wurde (füllt sich mit jeder Aktualisierung). Gepunktet: was das Modell nachträglich " +
+      "mit den Wetterdaten des Tages sagt. Grün: Messung.</div>";
     if (!days.length) return html + '<p class="muted">Noch keine vergangenen Tage im Archiv.</p></div>';
     days.forEach(function (d) {
       var model = deviation(d.hours, "wind_speed"), om = deviation(d.hours, "openmeteo_wind_speed");
+      var after = deviation(d.hours, "hindcast_speed");
       var info = d.forecast_generated_at ?
         "Prognose vom " + esc(new Date(d.forecast_generated_at).toLocaleString("de-CH", {
           timeZone: data.timezone, weekday: "short", day: "numeric", month: "numeric",
           hour: "2-digit", minute: "2-digit"
         })) : "keine archivierte Prognose";
       if (model) info += " · Abweichung Windmojo Ø " + fmt(model.mean) + " " + esc(unit) + " (" + model.n + " h)";
+      if (after) info += " · nachträglich Ø " + fmt(after.mean) + " " + esc(unit);
       if (om) info += " · Open-Meteo Ø " + fmt(om.mean) + " " + esc(unit);
+      if (d.hindcast_in_training) info += " · Tag war im Training des Modells – nachträgliche Werte zu gut";
       html += "<section><h3>" + dayLabel(d.date) + '</h3><div class="meta">' + info + "</div>" +
         legend(d.hours) + '<div class="chart">' + chart([d]) + "</div>" +
         "<details><summary>Stundenwerte</summary>" + table(d, "") + "</details></section>";

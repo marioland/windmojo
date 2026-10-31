@@ -128,6 +128,8 @@ def train(spot, config):
     click.echo("\n5. Training model...")
     trainer = UnifiedTrainer(training_cfg)
     results = trainer.train(train_data, validation_data, test_data, selected_features)
+    # Days up to here are part of the training data (hindcasts for them look too good)
+    results['data_until'] = str(max(all_dates))
 
     # Save
     click.echo("\n6. Saving model...")

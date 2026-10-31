@@ -9,7 +9,10 @@ import urllib.request
 import pandas as pd
 import pytest
 
-from windmojo.prediction.forecast import archive_forecast, save_forecast_json
+from windmojo.prediction.forecast import (
+    archive_forecast,
+    save_forecast_json,
+)
 from windmojo.prediction.history import (
     forecast_for_day,
     history,
@@ -117,6 +120,37 @@ class TestHistory:
         assert first[0]["measured_speed"] == pytest.approx(5.0)
         assert first[2]["measured_speed"] is None
         assert days[1]["forecast_generated_at"] is None  # measured only
+
+    def test_hindcast_and_training_period(self, spot, tmp_path):
+        config, paths = spot
+        for day, until in [("2026-10-30", "2026-10-30"), ("2026-10-31", "2026-10-30")]:
+            save_forecast_json(
+                {
+                    "date": day,
+                    "generated_at": "2026-10-31T17:00:00+01:00",
+                    "model_data_until": until,
+                    "hours": [
+                        {
+                            "time": f"{day}T10:00",
+                            "wind_speed": 4.5,
+                            "openmeteo_wind_speed": 2.0,
+                        }
+                    ],
+                },
+                tmp_path / "hindcast" / "2026-10" / f"{day}.json",
+            )
+        days = history(
+            load_archive(paths["forecast_archive"]),
+            load_measurements(config, paths["measurements"]),
+            datetime.date(2026, 10, 31),
+            days=1,
+            hindcast_dir=tmp_path / "hindcast",
+        )
+        assert days[0]["hours"][0]["hindcast_speed"] == 4.5
+        assert days[0]["hours"][0]["wind_speed"] == 4.0  # forecast shown then stays
+        assert days[0]["hindcast_in_training"] is True
+        assert days[1]["hindcast_in_training"] is False
+        assert "windmojo_hindcast_m_s" in to_csv(days[0]["hours"]).splitlines()[0]
 
     def test_only_hours_of_the_forecast_window(self, spot):
         config, paths = spot
