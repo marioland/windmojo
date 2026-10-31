@@ -4,6 +4,11 @@
 
 **Find your wind mojo with location-specific ML forecasts**
 
+![Windmojo forecast page for Greifensee: measured wind, the weather model forecast and the Windmojo forecast for the spot](web/screenshot.png)
+
+*The forecast page (`python cli.py serve`): the past days compare both forecasts with the measurements,
+then the forecast for the next days. Greifensee, Switzerland, October 2026.*
+
 ## What Windmojo Does
 
 Windmojo builds custom machine learning wind forecasting models for any location in the world. You provide:

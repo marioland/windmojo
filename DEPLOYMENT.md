@@ -180,6 +180,15 @@ measurements:                             # optional, refreshes paths.measuremen
   update_args: []
 ```
 
+URL parameters (also on a static website): `?unit=kn` (or `m/s`, `km/h`) sets the unit,
+`?view=header` shows only the header. The screenshot in the README is made that way, with any
+Chrome or Edge:
+
+```bash
+chrome --headless --hide-scrollbars --window-size=1320,820 --screenshot=screenshot.png \
+  "http://localhost:8000/?view=header&unit=kn"
+```
+
 The script runs with the same Python as the server. Without `measurements`, the button only
 creates a new forecast. For the hindcast, `predict` downloads `hindcast_days` more past days
 (same number of requests, longer time range); `hindcast_days: 0` switches it off.

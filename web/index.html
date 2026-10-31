@@ -165,7 +165,11 @@
   var messages = [];
 
   try { unit = localStorage.getItem("windmojo-unit") || unit; } catch (e) {}
+  // URL parameters: ?unit=kn (overrides the stored unit), ?view=header (only the header, e.g. for screenshots)
+  var params = new URLSearchParams(typeof location !== "undefined" ? location.search : "");
+  if (UNITS[params.get("unit")]) unit = params.get("unit");
   if (!UNITS[unit]) unit = "m/s";
+  var headerOnly = params.get("view") === "header";
 
   function esc(s) {
     return String(s).replace(/[&<>"]/g, function (c) {
@@ -393,8 +397,9 @@
     if (!n) return "";
     var slots = n + gap * (days.length - 1), cw = (W - L - R) / slots;
     var u = UNITS[unit];
-    var top = Math.max(4, Math.ceil(max * u.factor / 2) * 2 + (unit === "m/s" ? 0 : 2));
-    var step = top <= 12 ? 2 : top <= 30 ? 5 : 10;
+    var raw = max * u.factor;
+    var step = raw <= 10 ? 2 : raw <= 25 ? 5 : 10;
+    var top = Math.max(2 * step, Math.ceil(raw / step) * step);
     function x(i) { return L + (i + 0.5) * cw; }
     function y(v) { return T + (1 - v * u.factor / top) * (H - T - B); }
     function text(tx, ty, str, attrs) {
@@ -489,7 +494,8 @@
 
   function errorBar(name, value, worst, color) {
     return "<span>" + name + '</span><span class="track"><i style="width:' + Math.round(100 * value / worst) +
-      "%;background:" + color + '"></i></span><span class="val">' + fmt(value) + " " + esc(unit) + "</span>";
+      "%;background:" + color + '"></i></span><span class="val">' + (value * UNITS[unit].factor).toFixed(1) + " " +
+      esc(unit) + "</span>";
   }
 
   function source(cls, s, title, textHtml) {
@@ -619,6 +625,10 @@
     var mae = data.model && data.model.test_mae;
 
     var html = hero(days, now);
+    if (headerOnly) {
+      root.innerHTML = html;
+      return;
+    }
     html += '<div class="meta">Updated: ' + esc(created(data.generated_at)) + " · Local time (" +
       esc(data.timezone) + ")" + (mae ? " · Model error in test ±" + fmt(mae) + " " + esc(unit) : "") + "</div>";
     if (local) html += toolbar();
