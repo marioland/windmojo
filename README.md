@@ -334,6 +334,33 @@ Windmojo successfully trained production wind forecasting models for Lecco on La
 
 ---
 
+## Theory vs. Practice
+
+The [research notes](research/) describe the physics of local wind. Measurements at
+Greifensee (5.6 years) and Dervio (9 months) confirm the mechanisms, but not the expected
+ranking of features:
+
+- **Confirmed:** daytime mixing brings the upper-air wind down (Greifensee: correlation with
+  the 850 hPa wind 0.27 in stable, 0.51 in unstable conditions); a small lake makes no lake
+  breeze (Greifensee, 1.6 km wide: sunshine correlates negatively with wind); valley winds on
+  Lake Como (Dervio: strong wind from N/NE in the morning, from S/SW in the afternoon);
+  channelling along the lake axis (strongest pressure feature at Greifensee: the NW–SE gradient).
+- **Not confirmed:** the expected importance (pressure gradients 30–40 %, synoptic indices
+  20–30 %, thermal features 15–25 %). The GFS surface wind takes about half of the gain,
+  pressure gradients 4–7 %; synoptic and jet-level features add nothing. The model corrects
+  the GFS forecast, and GFS already turns pressure gradients into wind; synoptic indices act on
+  longer time scales. The earlier finding that 30–75 selected features work best was not
+  tested on independent data.
+- **Open:** the largest errors occur where the theory names drivers the model cannot see:
+  thermal valley winds (Dervio: at measured ≥ 4 m/s the error is 2.6 m/s for the morning
+  wind from the north, 1.5 m/s for the afternoon wind from the south; no radiation data in
+  the Dervio download) and the cross-Alpine pressure gradient behind föhn, which a 20 km
+  grid does not cover.
+
+Details: [FEATURE_RELEVANCE.md](research/03_FEATURE_ENGINEERING/FEATURE_RELEVANCE.md)
+
+---
+
 ## Data & File Structure
 
 Windmojo is migrating from an `area/spot` layout to a flat `spots/` layout. Download and
@@ -523,7 +550,7 @@ See [LICENSE](LICENSE) file.
 
 Inspired by [karpathy/autoresearch](https://github.com/karpathy/autoresearch) — an autonomous AI agent that modifies code, runs experiments, keeps improvements, and repeats indefinitely. The pattern maps naturally to Windmojo:
 
-- **Agent explores** XGBoost hyperparameters, new features, loss functions for strong wind, and training data weighting
+- **Agent explores** XGBoost hyperparameters, new features, probabilistic strong-wind forecasts, and training data weighting
 - **XGBoost trains in seconds** (vs. 5 minutes for LLMs), enabling 1,000+ experiments overnight
 - **Single metric** (MAE on held-out test weeks) provides clear optimization target
 - **Feature selection is settled**: walk-forward tests showed that no subset beats all features ([FEATURE_RELEVANCE.md](research/03_FEATURE_ENGINEERING/FEATURE_RELEVANCE.md))
