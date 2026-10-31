@@ -11,7 +11,7 @@ currently in use, by different pipeline steps:
 | Layout | Used by |
 |--------|---------|
 | `data/[area]/[spot]/` (legacy) | download (`windmojo.data_fetcher`), feature engineering (`windmojo.feature_engineer`), Phase 1/2 training |
-| `data/spots/[spot]/` (new) | `python cli.py train` and `python cli.py evaluate` |
+| `data/spots/[spot]/` (new) | `python cli.py train`, `evaluate` and `predict` |
 
 A new spot therefore starts in the legacy layout and is moved to `spots/` with
 `python cli.py migrate` once features exist.
@@ -43,10 +43,15 @@ data/spots/[spot]/
 │   ├── features/                    # Engineered features
 │   │   └── [spot]_features_phase1.parquet
 │   └── validation/                  # Validation diagrams (created by evaluate)
-└── models/
-    ├── model.json                   # Trained XGBoost model
-    └── metadata.json                # Features, metrics, params
+├── models/
+│   ├── model.json                   # Trained XGBoost model
+│   └── metadata.json                # Features, training medians, metrics, params
+└── forecasts/
+    └── forecast.json                # Latest live forecast (created by predict)
 ```
+
+For production (live forecasts on a website) only `input/config.yaml` and `models/` are
+needed — see [DEPLOYMENT.md](../DEPLOYMENT.md).
 
 `python cli.py migrate --from-dir data/[area]/[spot] --to-spot [spot]` creates this
 structure and copies `measurements/wind_data.csv` → `input/measurements.csv`, the raw
@@ -67,7 +72,7 @@ timestamp,dervio speed,dervio direction
 | Column | Requirement |
 |--------|-------------|
 | `timestamp` | **Required, exact name.** Format `YYYY-MM-DD_HHMM` (underscore, no colon). Other formats such as `2025-05-01 08:00:00` fail in training. |
-| wind speed | Any column name; must match `target.column` in the config. Use m/s (all reported metrics are in m/s). |
+| wind speed | Any column name; must match `target.column` in the config. Unit: set `target.unit` to `m/s` (default), `km/h`, `kn` or `mph` (legacy configs: `measurement_unit`). The simplified pipeline converts to m/s on loading; all reported metrics are in m/s. |
 | wind direction | Optional; any name, referenced by `target.direction_column`. Degrees. |
 
 **Time zone:** timestamps must be local time in the zone set by `timezone` in the

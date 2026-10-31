@@ -27,6 +27,8 @@ import xgboost as xgb
 from plotly.subplots import make_subplots
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
+from windmojo.units import kmh_to_unit, measurement_unit
+
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
@@ -302,15 +304,19 @@ class UnifiedTestWeekEvaluator:
         Extract GFS raw wind from features.
 
         Returns:
-            DataFrame with time, gfs_speed, gfs_direction
+            DataFrame with time, gfs_speed (in the measurement unit), gfs_direction
         """
+        # Models are trained on the measurements as they are; compare in their unit
+        unit = measurement_unit(self.config)
         gfs_data = []
 
         for _, row in features.iterrows():
             gfs_data.append(
                 {
                     "time": row["time"],
-                    "gfs_speed": row.get("wind_speed_10m_center", np.nan),
+                    "gfs_speed": kmh_to_unit(
+                        row.get("wind_speed_10m_center", np.nan), unit
+                    ),
                     "gfs_direction": row.get("wind_direction_10m_center", np.nan),
                 }
             )

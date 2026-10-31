@@ -36,6 +36,7 @@ grid:
 
 target:
   column: "greifensee speed"       # Column name in measurements.csv
+  unit: "m/s"                      # m/s (default), km/h, kn or mph; converted to m/s on loading
   direction_column: "greifensee direction"
 ```
 
@@ -56,6 +57,8 @@ center:
   longitude: 9.3
 
 measurement_file: "data/your_area/your_spot/measurements/wind_data.csv"
+measurement_unit: "km/h"           # Unit of the speed column (default m/s); legacy models and
+                                   # evaluations stay in this unit
 timezone: "Europe/Rome"
 
 grid:

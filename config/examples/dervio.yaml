@@ -17,6 +17,7 @@ grid:
 # Target variable (column names in measurements.csv)
 target:
   column: "dervio speed"           # Wind speed column
+  unit: "km/h"                     # Unit of the speed column: m/s (default), km/h, kn, mph
   direction_column: "dervio direction"  # Optional: wind direction
 
 # Training configuration
@@ -50,9 +51,11 @@ training:
 
 # Forecasting configuration (for production use)
 forecast:
-  initialization_time: "06:00"     # When forecast is initialized (UTC)
-  horizon_hours: 18                # Forecast up to 18 hours ahead
-  days_ahead: 7                    # Number of days to forecast
+  # Hours per day covered by training data and forecasts: from initialization_time
+  # (local time in `timezone`) for horizon_hours. Must match the training download.
+  initialization_time: "06:00"
+  horizon_hours: 18
+  days_ahead: 7                    # Days forecast by `predict` (max. 16)
 
 # Data paths (relative to spot directory: data/spots/{spot}/)
 # These are defaults and usually don't need to be changed
@@ -64,3 +67,4 @@ paths:
   validation: "training/validation"           # Training: validation results
   model: "models/model.json"                  # Output: trained model
   metadata: "models/metadata.json"            # Output: model metadata
+  forecast: "forecasts/forecast.json"         # Output: latest forecast (predict)

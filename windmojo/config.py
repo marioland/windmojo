@@ -13,6 +13,8 @@ from typing import Any, Dict, List
 
 import yaml
 
+from windmojo.units import measurement_unit
+
 logger = logging.getLogger(__name__)
 
 
@@ -93,6 +95,12 @@ def validate_config(config: Dict[str, Any]) -> None:
             except (ValueError, TypeError) as e:
                 raise ConfigurationError(f"Invalid grid radius: {e}")
 
+    # Validate measurement unit if present
+    try:
+        measurement_unit(config)
+    except ValueError as e:
+        raise ConfigurationError(str(e))
+
     # Validate timezone if present
     if "timezone" in config:
         import pytz
@@ -138,6 +146,7 @@ def get_paths(config: Dict[str, Any]) -> Dict[str, Path]:
         "validation": "training/validation",
         "model": "models/model.json",
         "metadata": "models/metadata.json",
+        "forecast": "forecasts/forecast.json",
     }
 
     # Override with custom paths from config if present

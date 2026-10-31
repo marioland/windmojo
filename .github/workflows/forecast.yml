@@ -1,0 +1,78 @@
+# Publish a live forecast to a web host (deployment variant B in DEPLOYMENT.md).
+#
+# Runs `python cli.py predict` on a schedule and uploads the JSON via SFTP.
+# Inactive until the repository variable FORECAST_SPOT is set.
+#
+# Repository variables (Settings → Secrets and variables → Actions → Variables):
+#   FORECAST_SPOT   spot name, e.g. greifensee (needs data/spots/<spot>/input/config.yaml
+#                   and data/spots/<spot>/models/ committed, see DEPLOYMENT.md)
+#   SFTP_HOST       e.g. sftp.example.ch
+#   SFTP_PORT       optional, default 22
+#   SFTP_USER       SFTP/SSH user of the hosting account
+#   SFTP_DIR        target directory on the host, e.g. public_html/wind
+#
+# Repository secrets:
+#   SFTP_PASSWORD        password of SFTP_USER (or SFTP_PRIVATE_KEY instead)
+#   SFTP_PRIVATE_KEY     optional, private SSH key (takes precedence over the password)
+#   OPEN_METEO_API_KEY   optional, required for commercial use of Open-Meteo
+
+name: Forecast
+
+on:
+  schedule:
+    # UTC. Shortly after new model runs are available on Open-Meteo.
+    - cron: "15 4,10,16,22 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: forecast
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: vars.FORECAST_SPOT != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: uv sync
+
+      - name: Predict
+        env:
+          OPEN_METEO_API_KEY: ${{ secrets.OPEN_METEO_API_KEY }}
+        run: >
+          uv run python cli.py predict
+          --spot "${{ vars.FORECAST_SPOT }}"
+          --output "out/${{ vars.FORECAST_SPOT }}.json"
+
+      - name: Upload via SFTP
+        env:
+          SFTP_HOST: ${{ vars.SFTP_HOST }}
+          SFTP_PORT: ${{ vars.SFTP_PORT || '22' }}
+          SFTP_USER: ${{ vars.SFTP_USER }}
+          SFTP_DIR: ${{ vars.SFTP_DIR }}
+          SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
+          SFTP_PRIVATE_KEY: ${{ secrets.SFTP_PRIVATE_KEY }}
+        run: |
+          sudo apt-get install -y -qq lftp > /dev/null
+          if [ -n "$SFTP_PRIVATE_KEY" ]; then
+            install -m 600 /dev/null ~/sftp_key
+            printf '%s\n' "$SFTP_PRIVATE_KEY" > ~/sftp_key
+            CONNECT="set sftp:connect-program 'ssh -a -x -o StrictHostKeyChecking=accept-new -i $HOME/sftp_key';"
+            LOGIN="$SFTP_USER,"
+          else
+            CONNECT="set sftp:auto-confirm yes;"
+            LOGIN="$SFTP_USER,$SFTP_PASSWORD"
+          fi
+          lftp -p "$SFTP_PORT" -u "$LOGIN" "sftp://$SFTP_HOST" -e "
+            $CONNECT
+            set net:max-retries 3;
+            mkdir -pf $SFTP_DIR;
+            put out/${{ vars.FORECAST_SPOT }}.json -o $SFTP_DIR/${{ vars.FORECAST_SPOT }}.json;
+            bye"

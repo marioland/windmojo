@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 
 from windmojo.core.config import get_test_dates, load_config
 from windmojo.train.phase1_model1 import Model1Trainer
+from windmojo.units import kmh_to_unit, measurement_unit
 
 
 @click.command()
@@ -169,7 +170,9 @@ def diagram(config, selection, output):
     dates = test_df["date"].values
     measurements = test_df[target_column].values
     our_preds = test_df["our_predictions"].values
-    gfs_preds = test_df["effective_wind_10m"].values
+    # Model 1 is trained on the measurements as they are; compare in their unit
+    unit = measurement_unit(config)
+    gfs_preds = kmh_to_unit(test_df["effective_wind_10m"].values, unit)
 
     click.echo(f"   {len(test_df)} test samples")
 
@@ -257,7 +260,7 @@ def diagram(config, selection, output):
         date_range = f"{month_dates[0].strftime('%Y-%m-%d')} to {month_dates[-1].strftime('%Y-%m-%d')}"
         ax.set_title(
             f"{month_name} - Wind Speed Validation\n"
-            f"{date_range} | Our MAE: {our_mae:.2f} m/s | GFS MAE: {gfs_mae:.2f} m/s | "
+            f"{date_range} | Our MAE: {our_mae:.2f} {unit} | GFS MAE: {gfs_mae:.2f} {unit} | "
             f"Improvement: {improvement:+.1f}% | {len(unique_dates)} days",
             fontsize=14,
             fontweight="bold",
@@ -266,7 +269,7 @@ def diagram(config, selection, output):
 
         # Format
         ax.set_xlabel("Date & Time", fontsize=12, fontweight="bold")
-        ax.set_ylabel("Wind Speed (m/s)", fontsize=12, fontweight="bold")
+        ax.set_ylabel(f"Wind Speed ({unit})", fontsize=12, fontweight="bold")
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d\n%H:%M"))
         ax.xaxis.set_major_locator(mdates.HourLocator(interval=6))
         ax.grid(True, alpha=0.3, linestyle="--", linewidth=0.5)
@@ -291,7 +294,7 @@ def diagram(config, selection, output):
     overall_improvement = ((overall_gfs_mae - overall_our_mae) / overall_gfs_mae) * 100
 
     click.echo(f"\n7. Overall Statistics:")
-    click.echo(f"   Our Model MAE: {overall_our_mae:.2f} m/s")
-    click.echo(f"   GFS MAE: {overall_gfs_mae:.2f} m/s")
+    click.echo(f"   Our Model MAE: {overall_our_mae:.2f} {unit}")
+    click.echo(f"   GFS MAE: {overall_gfs_mae:.2f} {unit}")
     click.echo(f"   Improvement: {overall_improvement:+.1f}%")
     click.echo(f"\n✓ Diagrams created in: {output}")

@@ -36,6 +36,15 @@ class TestValidateConfig:
         config = make_valid_config()
         validate_config(config)  # should not raise
 
+    def test_valid_measurement_unit(self):
+        config = make_valid_config(target={"column": "x", "unit": "km/h"})
+        validate_config(config)  # should not raise
+
+    def test_unknown_measurement_unit_raises(self):
+        config = make_valid_config(target={"column": "x", "unit": "knots"})
+        with pytest.raises(ConfigurationError, match="knots"):
+            validate_config(config)
+
     def test_missing_spot_raises(self):
         config = {"latitude": 46.0, "longitude": 9.0}
         with pytest.raises(ConfigurationError, match="spot"):
@@ -101,6 +110,7 @@ class TestGetPaths:
             "validation",
             "model",
             "metadata",
+            "forecast",
         }
         assert set(paths.keys()) == expected_keys
 

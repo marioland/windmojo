@@ -24,7 +24,8 @@ windmojo/
 │   │   ├── metrics.py              # calculate_metrics()
 │   │   └── diagrams.py             # create_validation_diagrams()
 │   ├── download/                   # (TODO: implement)
-│   └── prediction/                 # (TODO: implement)
+│   └── prediction/
+│       └── forecast.py             # Live forecast + JSON export (predict)
 │
 ├── data/spots/{spot}/              # Per-spot data
 │   ├── input/                      # User-provided inputs
@@ -34,10 +35,13 @@ windmojo/
 │   │   ├── raw/                    # Downloaded GFS data
 │   │   ├── features/               # Engineered features
 │   │   └── validation/             # Validation diagrams
-│   └── models/                     # Production-ready models
-│       ├── model.json              # Trained XGBoost model
-│       └── metadata.json           # Features, metrics, params
+│   ├── models/                     # Production-ready models
+│   │   ├── model.json              # Trained XGBoost model
+│   │   └── metadata.json           # Features, training medians, metrics, params
+│   └── forecasts/
+│       └── forecast.json           # Latest live forecast (predict)
 │
+├── web/index.html                  # Forecast page for websites
 └── config/examples/                # Example configurations
     └── dervio.yaml
 ```
@@ -58,7 +62,9 @@ timestamp,dervio speed,dervio direction
 ```
 
 - `timestamp`: exact column name, format `YYYY-MM-DD_HHMM`, local time in the config's `timezone`
-- Wind speed column: name set via `target.column`, in m/s
+- Wind speed column: name set via `target.column`; unit set via `target.unit`
+  (`m/s` default, `km/h`, `kn`, `mph`). Measurements are converted to m/s on loading,
+  so models, metrics and forecasts are always in m/s.
 - Direction column: optional, name set via `target.direction_column`
 
 Measurements are joined to the features on exact timestamp match.
@@ -84,6 +90,7 @@ grid:
 # Target variable
 target:
   column: "dervio speed"
+  unit: "km/h"            # m/s (default), km/h, kn or mph
   direction_column: "dervio direction"
 
 # Training configuration
@@ -121,6 +128,13 @@ paths:
   validation: "training/validation"
   model: "models/model.json"
   metadata: "models/metadata.json"
+  forecast: "forecasts/forecast.json"
+
+# Live forecast (predict); hours per day must match the training download
+forecast:
+  initialization_time: "06:00"   # local time in `timezone`
+  horizon_hours: 18
+  days_ahead: 7
 ```
 
 ## CLI Commands
@@ -164,8 +178,8 @@ python cli.py train --spot dervio --config /path/to/config.yaml
 **Example output:**
 ```
 Training Complete!
-Train MAE: 2.94 m/s
-Test MAE: 5.35 m/s
+Train MAE: 0.82 m/s
+Test MAE: 1.49 m/s
 Model saved to: data/spots/dervio/models/model.json
 ```
 
@@ -186,18 +200,35 @@ python cli.py evaluate --spot dervio
 **Example output:**
 ```
 Evaluation Complete!
-Test MAE: 5.35 m/s
+Test MAE: 1.49 m/s
 Diagrams: 5 created in data/spots/dervio/training/validation
-  • validation_2025-01.png (MAE: 5.12, +4.3% improvement)
-  • validation_2025-03.png (MAE: 4.20, +28.1% improvement)
-  • validation_2025-05.png (MAE: 4.93, +2.9% improvement)
-  • validation_2025-07.png (MAE: 6.94, +7.5% improvement)
-  • validation_2025-09.png (MAE: 5.83, +9.4% improvement)
+  • validation_2025-01.png (MAE: 1.42, +4.3% improvement)
+  • validation_2025-03.png (MAE: 1.17, +28.1% improvement)
+  • validation_2025-05.png (MAE: 1.37, +2.9% improvement)
+  • validation_2025-07.png (MAE: 1.93, +7.5% improvement)
+  • validation_2025-09.png (MAE: 1.62, +9.4% improvement)
 
-Overall: 5.35 m/s MAE (+10.7% over GFS)
+Overall: 1.49 m/s MAE (+10.7% over GFS)
 ```
 
-### 4. Download (TODO)
+### 4. Predict (live forecast)
+
+```bash
+python cli.py predict --spot dervio
+python cli.py predict --spot dervio --output /path/to/web/dervio.json
+```
+
+**What it does:**
+1. Loads the trained model and metadata
+2. Downloads the current Open-Meteo forecast for the 9-point grid (plus 7 past days
+   for lag/rolling features), restricted to the training hours (`forecast` section)
+3. Runs the same feature pipeline as for training (without outlier capping)
+4. Predicts and writes JSON (default `data/spots/{spot}/forecasts/forecast.json`)
+
+Scheduling, website integration and hosting variants (cron on the web host,
+GitHub Actions + SFTP, own server): **[DEPLOYMENT.md](DEPLOYMENT.md)**.
+
+### 5. Download (TODO)
 
 ```bash
 # Download GFS data for date range
@@ -207,7 +238,7 @@ python cli.py download \
   --end-date 2025-12-31
 ```
 
-### 5. Features (TODO)
+### 6. Features (TODO)
 
 ```bash
 # Engineer features from raw GFS data
@@ -245,7 +276,7 @@ A **single XGBoost model** trained on all hours with hour encoding, using a care
 
 ### Performance:
 
-- **Test MAE**: ~5.35 m/s
+- **Test MAE**: ~1.49 m/s (Dervio)
 - **Improvement over GFS**: +10.7%
 - **R² score**: 0.334
 
@@ -428,13 +459,13 @@ If you have data in the old `data/{area}/{spot}/` structure:
 
 ## Performance Summary
 
-Based on Dervio spot (Lake Como):
+Based on Dervio spot (Lake Como; measurements in km/h, converted to m/s):
 
 - **Training samples**: ~6,600 hours
 - **Test samples**: 318 hours (20 days, all hours)
 - **Features**: 166 (Spatial Heavy selection)
-- **Train MAE**: 2.94 m/s
-- **Test MAE**: 5.35 m/s
+- **Train MAE**: 0.82 m/s
+- **Test MAE**: 1.49 m/s
 - **Improvement over GFS**: +10.7%
 
 **Per-month performance**:
@@ -445,9 +476,12 @@ Based on Dervio spot (Lake Como):
 - September: +9.4% improvement
 
 **Metrics**:
-- RMSE: 6.91 m/s
+- RMSE: 1.92 m/s
 - R²: 0.334
-- MBE: -0.27 m/s (slight underprediction bias)
+- MBE: -0.08 m/s (slight underprediction bias)
+
+These numbers were first reported in km/h labelled as m/s (the Dervio measurements are
+in km/h and the GFS baseline was compared without conversion; fixed with `target.unit`).
 
 ## Questions?
 

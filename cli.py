@@ -54,6 +54,7 @@ def train(spot, config):
     """Train Spatial Heavy Unified model."""
     from windmojo.config import load_config, get_paths, get_training_config, get_test_dates, load_feature_selection
     from windmojo.training import SpatialHeavyTrainer
+    from windmojo.units import measurement_unit, to_ms
     import pandas as pd
 
     click.echo(f"\n{'='*60}")
@@ -76,6 +77,10 @@ def train(spot, config):
     measurements['time'] = pd.to_datetime(measurements['timestamp'], format='%Y-%m-%d_%H%M')
     measurements['date'] = measurements['time'].dt.date
     target_col = cfg['target']['column']
+    unit = measurement_unit(cfg)
+    measurements[target_col] = to_ms(measurements[target_col], unit)
+    if unit != 'm/s':
+        click.echo(f"   Converted '{target_col}' from {unit} to m/s")
 
     # Load features
     click.echo("2. Loading features...")
@@ -152,6 +157,7 @@ def evaluate(spot, config):
     from windmojo.config import load_config, get_paths, get_test_dates
     from windmojo.training import SpatialHeavyTrainer
     from windmojo.evaluation import calculate_metrics, create_validation_diagrams
+    from windmojo.units import measurement_unit, to_ms
     import pandas as pd
     import numpy as np
 
@@ -180,6 +186,10 @@ def evaluate(spot, config):
     measurements = pd.read_csv(paths['measurements'])
     measurements['time'] = pd.to_datetime(measurements['timestamp'], format='%Y-%m-%d_%H%M')
     measurements['date'] = measurements['time'].dt.date
+    unit = measurement_unit(cfg)
+    measurements[target_col] = to_ms(measurements[target_col], unit)
+    if unit != 'm/s':
+        click.echo(f"   Converted '{target_col}' from {unit} to m/s")
 
     # Load features
     click.echo("3. Loading features...")
@@ -242,6 +252,53 @@ def evaluate(spot, config):
     click.echo(f"Diagrams: {len(diagram_files)} created in {paths['validation']}")
     for month_name, diagram_path in diagram_files.items():
         click.echo(f"  • {diagram_path.name}")
+
+
+@cli.command()
+@click.option('--spot', required=True, help='Spot name')
+@click.option('--config', '-c', type=click.Path(exists=True), help='Config file (default: data/spots/{spot}/input/config.yaml)')
+@click.option('--output', '-o', type=click.Path(), help='JSON output file (default: data/spots/{spot}/forecasts/forecast.json)')
+@click.option('--history-days', default=7, show_default=True, help='Past days downloaded for lag and rolling features')
+def predict(spot, config, output, history_days):
+    """Create a live forecast and export it as JSON (see DEPLOYMENT.md)."""
+    from windmojo.config import load_config, get_paths
+    from windmojo.training import SpatialHeavyTrainer
+    from windmojo.prediction import predict_forecast, forecast_to_dict, save_forecast_json
+    import warnings
+    import pandas as pd
+
+    # The feature pipeline adds columns one at a time; harmless, but it floods cron logs
+    warnings.filterwarnings('ignore', category=pd.errors.PerformanceWarning)
+
+    click.echo(f"\n{'='*60}")
+    click.echo(f"Forecast: {spot}")
+    click.echo(f"{'='*60}\n")
+
+    # Load config
+    if config is None:
+        config = Path(f"data/spots/{spot}/input/config.yaml")
+    else:
+        config = Path(config)
+
+    cfg = load_config(config)
+    paths = get_paths(cfg)
+    output = Path(output) if output else paths['forecast']
+
+    # Load model
+    click.echo("1. Loading trained model...")
+    trainer = SpatialHeavyTrainer(cfg.get('training', {}))
+    trainer.load(paths['model'], paths['metadata'])
+
+    # Download, features, predict
+    click.echo("2. Downloading forecast and predicting...")
+    result = predict_forecast(cfg, trainer, history_days=history_days)
+
+    # Export
+    click.echo("3. Writing JSON...")
+    save_forecast_json(forecast_to_dict(result, cfg, trainer), output)
+
+    click.echo(f"\n✓ {len(result)} hours ({result['time'].min():%Y-%m-%d %H:%M} to "
+               f"{result['time'].max():%Y-%m-%d %H:%M}) written to {output}")
 
 
 

@@ -35,6 +35,7 @@ class SpatialHeavyTrainer:
         self.params = config.get("xgboost", {})
         self.model = None
         self.feature_columns = None
+        self.feature_medians = None
         self.training_history = {}
 
     def train(
@@ -83,11 +84,12 @@ class SpatialHeavyTrainer:
             f"  Test missing: {test_missing} ({test_missing/(len(X_test)*len(feature_columns))*100:.1f}%)"
         )
 
-        # Handle missing values (fill with median)
+        # Handle missing values (fill with train median, also used by predict())
+        self.feature_medians = X_train.median()
         if train_missing > 0:
-            X_train = X_train.fillna(X_train.median())
+            X_train = X_train.fillna(self.feature_medians)
         if test_missing > 0:
-            X_test = X_test.fillna(X_train.median())  # Use train median for test
+            X_test = X_test.fillna(self.feature_medians)
 
         # Train XGBoost
         logger.info("Training XGBoost model...")
@@ -152,9 +154,15 @@ class SpatialHeavyTrainer:
         # Ensure correct feature order
         X_features = X[self.feature_columns]
 
-        # Handle missing values
+        # Handle missing values (train medians; models saved before they were
+        # stored fall back to the medians of X)
         if X_features.isna().sum().sum() > 0:
-            X_features = X_features.fillna(X_features.median())
+            medians = (
+                self.feature_medians
+                if self.feature_medians is not None
+                else X_features.median()
+            )
+            X_features = X_features.fillna(medians)
 
         return self.model.predict(X_features)
 
@@ -178,6 +186,10 @@ class SpatialHeavyTrainer:
         metadata = {
             "model_type": "spatial_heavy_unified",
             "features": self.feature_columns,
+            "feature_medians": {
+                f: None if pd.isna(v) else float(v)
+                for f, v in self.feature_medians.items()
+            },
             "training_results": self.training_history,
             "params": self.params,
         }
@@ -204,6 +216,10 @@ class SpatialHeavyTrainer:
             metadata = json.load(f)
 
         self.feature_columns = metadata["features"]
+        medians = metadata.get("feature_medians")
+        self.feature_medians = (
+            pd.Series(medians, dtype=float) if medians is not None else None
+        )
         self.training_history = metadata.get("training_results", {})
         self.params = metadata.get("params", {})
 

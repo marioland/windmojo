@@ -14,6 +14,8 @@ from typing import Dict, List
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 
+from windmojo.units import KMH_TO_MS
+
 logger = logging.getLogger(__name__)
 
 
@@ -32,7 +34,7 @@ def create_validation_diagrams(
     Args:
         predictions: DataFrame with columns ['time', 'prediction']
         measurements: DataFrame with target wind measurements
-        features: DataFrame with GFS baseline (effective_wind_10m)
+        features: DataFrame with GFS baseline (effective_wind_10m, km/h)
         test_dates: List of test dates to create diagrams for
         target_col: Name of target column in measurements
         output_dir: Directory to save diagrams
@@ -55,6 +57,7 @@ def create_validation_diagrams(
     merged = merged.merge(
         features[["time", "effective_wind_10m"]], on="time", how="inner"
     )
+    merged["gfs_baseline"] = merged["effective_wind_10m"] * KMH_TO_MS
 
     merged["date"] = merged["time"].dt.date
 
@@ -83,7 +86,7 @@ def create_validation_diagrams(
         times = month_data["time"].values
         measurements_arr = month_data[target_col].values
         predictions_arr = month_data["prediction"].values
-        gfs_arr = month_data["effective_wind_10m"].values
+        gfs_arr = month_data["gfs_baseline"].values
 
         # Create figure
         fig, ax = plt.subplots(1, 1, figsize=(20, 8))
@@ -185,7 +188,7 @@ def create_validation_diagrams(
 
     # Overall statistics
     overall_our_mae = np.mean(np.abs(merged[target_col] - merged["prediction"]))
-    overall_gfs_mae = np.mean(np.abs(merged[target_col] - merged["effective_wind_10m"]))
+    overall_gfs_mae = np.mean(np.abs(merged[target_col] - merged["gfs_baseline"]))
     overall_improvement = ((overall_gfs_mae - overall_our_mae) / overall_gfs_mae) * 100
 
     logger.info(f"\nOverall Statistics:")

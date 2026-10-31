@@ -30,9 +30,17 @@ python cli.py evaluate --spot dervio
 
 # 3. Migrate from old structure (if needed)
 python cli.py migrate --from-dir data/lake_como/dervio --to-spot dervio
+
+# 4. Live forecast as JSON (for websites)
+python cli.py predict --spot dervio
 ```
 
 See [SIMPLIFIED_ARCHITECTURE.md](SIMPLIFIED_ARCHITECTURE.md) for complete documentation.
+
+**Forecasts on your website:** [DEPLOYMENT.md](DEPLOYMENT.md) explains how to run the
+forecast on a schedule and show it on any website — including shared web hosting
+without Python (cron on the host, GitHub Actions + SFTP, or own server), with a
+ready-made forecast page in [`web/`](web/index.html).
 
 ---
 
@@ -72,7 +80,8 @@ Windmojo learns these location-specific patterns from your historical wind data 
 
 **Data Format:**
 CSV with a `timestamp` column in the format `YYYY-MM-DD_HHMM`, local time of the
-spot's configured `timezone`. Wind speed in m/s; the column name is set in the config.
+spot's configured `timezone`. Wind speed in m/s, km/h, knots or mph (set `target.unit`
+in the config, default m/s); the column name is set in the config.
 
 ```csv
 timestamp,dervio speed,dervio direction
@@ -321,13 +330,13 @@ Windmojo successfully trained production wind forecasting models for Lecco on La
 - Training hours: 06:00-18:00 (13 daylight hours)
 - Total samples: 2,332
 
-**Performance on Held-Out Test Weeks:**
+**Performance on Held-Out Test Weeks** (measurements in km/h, converted to m/s):
 
 | Model | MAE | vs. GFS | Improvement |
 |-------|-----|---------|-------------|
-| **gfs_balanced** (53 features) | **3.388 m/s** | 3.719 m/s | **+8.9%** ✅ |
-| gfs_topn (75 features) | 3.399 m/s | 3.719 m/s | +8.6% ✅ |
-| gfs_regime_indicators (40 features) | 3.557 m/s | 3.719 m/s | +4.4% ✅ |
+| **gfs_balanced** (53 features) | **0.941 m/s** | 1.033 m/s | **+8.9%** ✅ |
+| gfs_topn (75 features) | 0.944 m/s | 1.033 m/s | +8.6% ✅ |
+| gfs_regime_indicators (40 features) | 0.988 m/s | 1.033 m/s | +4.4% ✅ |
 
 **All 5 trained models beat GFS baseline** on unseen test weeks.
 
@@ -335,9 +344,9 @@ Windmojo successfully trained production wind forecasting models for Lecco on La
 
 | Season | GFS MAE | Best Model | Improvement |
 |--------|---------|------------|-------------|
-| Early (March) | 2.935 m/s | 3.248 m/s | Challenging |
-| Mid (May-June) | 3.093 m/s | **2.731 m/s** | **12% better** ✅ |
-| Late (August) | 5.130 m/s | **4.026 m/s** | **21% better** ✅ |
+| Early (March) | 0.815 m/s | 0.902 m/s | Challenging |
+| Mid (May-June) | 0.859 m/s | **0.759 m/s** | **12% better** ✅ |
+| Late (August) | 1.425 m/s | **1.118 m/s** | **21% better** ✅ |
 
 **Key Findings:**
 - Summer thermal winds show biggest improvement (21%)
@@ -373,11 +382,14 @@ windmojo/
 │       └── [spot]/
 │           ├── input/           # config.yaml + measurements.csv
 │           ├── training/        # raw/, features/, validation/
-│           └── models/          # model.json + metadata.json
+│           ├── models/          # model.json + metadata.json
+│           └── forecasts/       # forecast.json (cli.py predict)
+├── web/index.html               # Forecast page for websites (see DEPLOYMENT.md)
 └── windmojo/                    # Source code
     ├── data/                    # Data downloading
     ├── features/                # Feature engineering
-    └── train/                   # Model training
+    ├── train/                   # Model training
+    └── prediction/              # Live forecasts (cli.py predict)
 ```
 
 ---
@@ -417,11 +429,12 @@ uv run python -m windmojo.train_phase2_model2_unified \
   --feature-selection data/area/spot/models/phase1_model1/full/feature_selections/features_gfs_balanced.json \
   --test-weeks data/area/spot/test_weeks.json
 
-# Generate forecasts (production use)
-uv run python -m windmojo.forecast \
-  --config config/area/spot.yaml \
-  --model data/area/spot/models/phase2_model2/gfs_balanced/model2_gfs_balanced_unified.json
+# Generate a live forecast as JSON (production use, new spot layout)
+uv run python cli.py predict --spot spot --output path/to/spot.json
 ```
+
+Running `predict` on a schedule and publishing the result on a website:
+[DEPLOYMENT.md](DEPLOYMENT.md).
 
 ---
 
@@ -450,12 +463,12 @@ uv run python -m windmojo.forecast \
 
 | MAE (m/s) | Quality | Usability |
 |-----------|---------|-----------|
-| < 4.0 | Excellent | High confidence for planning |
-| 4.0 - 6.0 | Good | Reliable for wind sports |
-| 6.0 - 8.0 | Fair | General guidance |
-| > 8.0 | Poor | Consider more training data |
+| < 1.1 | Excellent | High confidence for planning |
+| 1.1 - 1.7 | Good | Reliable for wind sports |
+| 1.7 - 2.2 | Fair | General guidance |
+| > 2.2 | Poor | Consider more training data |
 
-**Note:** Afternoon MAE matters most for wind sports. If afternoon MAE < 5.0 m/s, model is highly useful.
+**Note:** Afternoon MAE matters most for wind sports. If afternoon MAE < 1.4 m/s, model is highly useful.
 
 ### Can I use this for locations without thermal winds?
 
@@ -535,7 +548,8 @@ See [LICENSE](LICENSE) file.
 ## Roadmap
 
 ### Near-Term
-- **Phase 3: Forecasting Pipeline** — Daily automated forecast generation
+- **Phase 3: Forecasting Pipeline** — Scheduled forecast generation is available
+  (`cli.py predict`, [DEPLOYMENT.md](DEPLOYMENT.md)); open: forecast verification against new measurements
 - **Additional Locations** — Expand beyond Lake Como (Lecco, other lakes, coastal spots)
 - **API Endpoint** — REST API for serving predictions
 
