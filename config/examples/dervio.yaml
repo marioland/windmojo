@@ -49,6 +49,14 @@ training:
     tree_method: 'hist'
     early_stopping_rounds: 50
 
+  # Timing tolerance of the training loss: a wind peak forecast up to `hours` too early
+  # or too late is not punished twice (as false alarm and as miss). The hourly forecast
+  # then means "this wind around this hour" rather than "exactly at this hour".
+  time_tolerance:
+    hours: 3                       # 0 = plain squared error
+    shift_penalty: 0.25            # (m/s)^2 per squared hour: 1 h shift = 0.5 m/s error
+    exact_weight: 0.2              # share of the plain error at the exact hour
+
 # Forecasting configuration (for production use)
 forecast:
   # Hours per day covered by training data and forecasts: from initialization_time

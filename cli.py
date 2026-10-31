@@ -113,7 +113,7 @@ def train(spot, config):
     validation_mask = merged['date'].isin(validation_dates)
 
     def prepare(mask):
-        data = merged.loc[mask, selected_features + [target_col]]
+        data = merged.loc[mask, ['time'] + selected_features + [target_col]]
         return data.rename(columns={target_col: 'target'})
 
     train_data = prepare(~test_mask & ~validation_mask)

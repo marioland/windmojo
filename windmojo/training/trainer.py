@@ -13,6 +13,8 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 
+from windmojo.training.objectives import time_tolerant_objective
+
 logger = logging.getLogger(__name__)
 
 
@@ -35,6 +37,8 @@ class UnifiedTrainer:
         """
         self.config = config
         self.params = config.get("xgboost", {})
+        # Timing errors up to `hours` are not punished twice (0 = plain squared error)
+        self.time_tolerance = config.get("time_tolerance", {"hours": 0})
         self.model = None
         self.feature_columns = None
         self.feature_medians = None
@@ -51,7 +55,8 @@ class UnifiedTrainer:
         Train unified model on all hours.
 
         Args:
-            train_data: Training data with target column
+            train_data: Training data with target column (and a time column
+                when time_tolerance is active)
             validation_data: Early-stopping data with target column (days not
                 in train_data or test_data, see validation_mask())
             test_data: Test data with target column (only used for metrics)
@@ -103,7 +108,16 @@ class UnifiedTrainer:
         # Train XGBoost
         logger.info("Training XGBoost model...")
 
-        self.model = xgb.XGBRegressor(**self.params)
+        params = dict(self.params)
+        if self.time_tolerance.get("hours", 0) > 0:
+            if "time" not in train_data:
+                raise ValueError("time_tolerance needs a 'time' column in train_data")
+            logger.info(f"  Time tolerance: {self.time_tolerance}")
+            params["objective"] = time_tolerant_objective(
+                train_data["time"], y_train, **self.time_tolerance
+            )
+            params["base_score"] = float(y_train.mean())
+        self.model = xgb.XGBRegressor(**params)
 
         # Early stopping (early_stopping_rounds in params) on the validation
         # days; stopping on the test days would make the test MAE optimistic
@@ -201,6 +215,7 @@ class UnifiedTrainer:
             },
             "training_results": self.training_history,
             "params": self.params,
+            "time_tolerance": self.time_tolerance,
         }
 
         with open(metadata_path, "w") as f:
@@ -231,6 +246,7 @@ class UnifiedTrainer:
         )
         self.training_history = metadata.get("training_results", {})
         self.params = metadata.get("params", {})
+        self.time_tolerance = metadata.get("time_tolerance", {"hours": 0})
 
         logger.info(f"Metadata loaded from: {metadata_path}")
         logger.info(f"  Features: {len(self.feature_columns)}")

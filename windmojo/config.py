@@ -206,6 +206,13 @@ def get_training_config(config: Dict[str, Any]) -> Dict[str, Any]:
             "tree_method": "hist",
             "early_stopping_rounds": 50,
         },
+        # Timing errors up to `hours` are not punished twice, see
+        # windmojo/training/objectives.py (hours: 0 = plain squared error)
+        "time_tolerance": {
+            "hours": 3,
+            "shift_penalty": 0.25,
+            "exact_weight": 0.2,
+        },
     }
 
     if "training" in config:
@@ -213,6 +220,8 @@ def get_training_config(config: Dict[str, Any]) -> Dict[str, Any]:
             defaults["test_dates"].update(config["training"]["test_dates"])
         if "xgboost" in config["training"]:
             defaults["xgboost"].update(config["training"]["xgboost"])
+        if "time_tolerance" in config["training"]:
+            defaults["time_tolerance"].update(config["training"]["time_tolerance"])
         if "model" in config["training"]:
             defaults["model"] = config["training"]["model"]
 

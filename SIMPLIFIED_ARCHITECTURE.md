@@ -174,7 +174,7 @@ python cli.py train --spot dervio --config /path/to/config.yaml
    `hour`, `hour_sin`, `hour_cos`); taken before the merge, so measurement columns never
    become features
 4. Splits data by test_dates strategy; every 10th remaining day is the early-stopping set
-5. Trains unified XGBoost model
+5. Trains unified XGBoost model with a timing-tolerant loss (`time_tolerance`, see below)
 6. Saves model.json and metadata.json
 
 **Example output:**
@@ -275,6 +275,22 @@ the pipeline.
    - Column sample: 0.8
    - L1/L2 regularization
    - Early stopping on every 10th training day (never on the test days)
+
+4. **Timing-tolerant loss** (`training.time_tolerance`, `windmojo/training/objectives.py`):
+   plain squared error punishes a wind peak forecast one hour too early twice, as false
+   alarm and as miss, so the model learns to flatten peaks. The loss matches each forecast
+   hour with the best-fitting measurement within ±`hours` and each measured hour with the
+   best-fitting forecast, plus `shift_penalty` per squared hour of shift. Matching in both
+   directions keeps missed peaks expensive (matching only forecast → measurement made the
+   model flatter). The hourly value then means "this wind around this hour". The right
+   tolerance probably grows with lead time; training data are same-day forecasts.
+
+   Default ±3 h, 1 h of shift = 0.5 m/s error, 20 % exact hour. Walk-forward on Greifensee
+   (3 test years × 3 seeds) against plain squared error: MAE +0.001 m/s, days with
+   ≥ 4 m/s that the forecast misses −5.5 percentage points (38 % → 32 %, fewer in every
+   year), false-alarm days +2.2 points (4 % → 6 %), still calibrated (bias −0.04 m/s when
+   the forecast is ≥ 4 m/s). ±1 h and ±2 h help less; a weaker shift penalty or less
+   weight on the exact hour trades more MAE for fewer misses.
 
 ### Performance:
 

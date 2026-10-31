@@ -167,6 +167,13 @@ class TestGetTrainingConfig:
         assert training["xgboost"]["max_depth"] == 6
         assert training["xgboost"]["learning_rate"] == 0.05
 
+    def test_time_tolerance_default_and_override(self):
+        assert get_training_config(make_valid_config())["time_tolerance"]["hours"] > 0
+        config = make_valid_config(training={"time_tolerance": {"hours": 0}})
+        tolerance = get_training_config(config)["time_tolerance"]
+        assert tolerance["hours"] == 0
+        assert "shift_penalty" in tolerance  # other defaults stay
+
     def test_custom_xgboost_params_override(self):
         config = make_valid_config(training={"xgboost": {"max_depth": 8}})
         training = get_training_config(config)
