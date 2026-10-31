@@ -139,7 +139,7 @@ class ForecastApp:
     def update(self) -> Tuple[int, Dict[str, Any]]:
         """Download new measurements (if configured) and a new forecast."""
         if not self.lock.acquire(blocking=False):
-            return 409, {"ok": False, "messages": ["Aktualisierung läuft bereits."]}
+            return 409, {"ok": False, "messages": ["An update is already running."]}
         try:
             messages = []
             ok = self._update_measurements(messages)
@@ -163,7 +163,7 @@ class ForecastApp:
             age = self._age(datetime.fromtimestamp(path.stat().st_mtime, self.timezone))
             if age < MIN_UPDATE_INTERVAL:
                 messages.append(
-                    f"Messdaten sind aktuell (vor {age.seconds // 60} min geladen)."
+                    f"Measurements are up to date (loaded {age.seconds // 60} min ago)."
                 )
                 return True
         args = [str(a) for a in self.config["measurements"].get("update_args", [])]
@@ -176,13 +176,13 @@ class ForecastApp:
                 timeout=900,
             )
         except (OSError, subprocess.TimeoutExpired) as e:
-            messages.append(f"Messdaten: Fehler ({e}).")
+            messages.append(f"Measurements: error ({e}).")
             return False
         if run.returncode != 0:
             last = (run.stderr or run.stdout).strip().splitlines()[-1:] or ["?"]
-            messages.append(f"Messdaten: Fehler ({last[0]}).")
+            messages.append(f"Measurements: error ({last[0]}).")
             return False
-        messages.append("Messdaten geladen.")
+        messages.append("Measurements loaded.")
         return True
 
     def _update_forecast(self, messages) -> bool:
@@ -191,16 +191,16 @@ class ForecastApp:
             age = self._age(datetime.fromisoformat(current["generated_at"]))
             if age < MIN_UPDATE_INTERVAL:
                 messages.append(
-                    f"Prognose ist aktuell (vor {age.seconds // 60} min erstellt)."
+                    f"Forecast is up to date (created {age.seconds // 60} min ago)."
                 )
                 return True
         try:
             self.forecast_runner(self.config, self.paths)
         except Exception as e:  # shown on the page instead of a server error
             logger.exception("Forecast failed")
-            messages.append(f"Prognose: Fehler ({e}).")
+            messages.append(f"Forecast: error ({e}).")
             return False
-        messages.append("Neue Prognose erstellt.")
+        messages.append("New forecast created.")
         return True
 
 
@@ -216,7 +216,7 @@ def make_handler(app: ForecastApp):
                 data = app.forecast()
                 if data is None:
                     self._json(
-                        404, {"message": "Noch keine Prognose. Bitte aktualisieren."}
+                        404, {"message": "No forecast yet. Please update."}
                     )
                 else:
                     self._json(200, data)

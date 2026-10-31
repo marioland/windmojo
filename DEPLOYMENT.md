@@ -160,10 +160,11 @@ Served this way it offers more than as a static file:
 
 | Element | What it does |
 |---------|--------------|
-| Overview at the top | Time windows of today and the next 2 days with Windmojo mean wind of 10–15 kn (wingfoiling, 8–20 h; also on a static website; range in `SESSION` at the top of the page script), and how much more accurate Windmojo was than Open-Meteo over the past days. |
-| Button "Prognose und Messdaten aktualisieren" | Runs the measurement script of the spot (`measurements.update_script` in the config, e.g. a Datalakes download) and then `predict` (9 Open-Meteo requests, archived as usual). Each source is downloaded at most every 10 minutes; a second click within that time reuses the data. |
-| Measured values | Hours of the forecast that are already measured show the measurement next to the forecast (table column "Gemessen", green line). Gusts and direction need `target.gust_column` and `target.direction_column`. |
-| "Rückblick" | The past 7 days: the forecast as it was shown then (last archived run before the day, from `forecasts/archive/`; fills up with every update), the hindcast (dotted: what the model says for the day with the weather data of that day, from `forecasts/hindcast/`) and the measurement, with the mean deviation of each and how many percent Windmojo is more accurate than Open-Meteo (same hours only). Days up to the end of the model's training data are marked: their hindcast looks better than a real forecast. |
+| Header | What the project is about at a glance: one chart with the past days the model was not trained on (measured, weather model, Windmojo) and the next days, the three data sources explained, and how many percent Windmojo was more accurate than the weather model on the measured hours. On a static website the header shows the forecast only. |
+| Wingfoiling overview | Time windows of today and the next 2 days with Windmojo mean wind of 10–15 kn, 8–20 h (also on a static website; range in `SESSION` at the top of the page script). |
+| Button "Update forecast and measurements" | Runs the measurement script of the spot (`measurements.update_script` in the config, e.g. a Datalakes download) and then `predict` (9 Open-Meteo requests, archived as usual). Each source is downloaded at most every 10 minutes; a second click within that time reuses the data. |
+| Measured values | Hours of the forecast that are already measured show the measurement next to the forecast (table column "Measured", green line). Gusts and direction need `target.gust_column` and `target.direction_column`. |
+| "Look back" | The past 7 days: the forecast as it was shown then (last archived run before the day, from `forecasts/archive/`; fills up with every update), the hindcast (dotted: what the model says for the day with the weather data of that day, from `forecasts/hindcast/`) and the measurement, with the mean deviation of each and how many percent Windmojo is more accurate than Open-Meteo (same hours only). Days up to the end of the model's training data are marked: their hindcast looks better than a real forecast. |
 | CSV downloads | `download/forecast.csv` (current forecast with the measurements so far) and `download/history.csv?days=30` (past days: forecast shown, hindcast and measurement per hour), m/s, local time. |
 
 Spot configuration for the update button:
@@ -413,7 +414,7 @@ public_html/wind/greifensee.json
 <div class="windmojo" id="windmojo" data-src="greifensee.json">
 ```
 
-Texts are German; they are plain strings in the script and easy to translate.
+Texts are English; they are plain strings in the script and easy to translate.
 
 ### 9.2 Embedding in an existing site / CMS
 
@@ -487,7 +488,7 @@ requests with many variables as several calls, a run counts as roughly 16 API ca
   rentals) needs an API subscription; set its key as `OPEN_METEO_API_KEY`. See
   <https://open-meteo.com/en/pricing> and <https://open-meteo.com/en/terms>.
 - **Attribution:** Open-Meteo data is licensed under CC BY 4.0. The page shows
-  "Wetterdaten: Open-Meteo.com (CC BY 4.0)" in its footer — keep an equivalent notice
+  "Weather data: Open-Meteo.com (CC BY 4.0)" in its footer — keep an equivalent notice
   when building your own page.
 - **Measurement data:** production does not need the measurements. If you also want
   to publish live measurements on the website, check the data provider's terms of use
@@ -508,7 +509,7 @@ requests with many variables as several calls, a run counts as roughly 16 API ca
 | `N model features missing in forecast data` | Open-Meteo returned fewer variables than at training time, or model and pipeline versions differ. Missing values are filled with training medians; retrain if the warning persists. |
 | `HTTP error 429` / `Rate limit exceeded` | Too many requests (also counts other users on a shared host IP). Run less often or use an API key. |
 | `HTTP error 400` with API key | Key invalid or plan without access to the forecast API. |
-| Page: "Prognose konnte nicht geladen werden (HTTP 404)" | `data-src` does not match the JSON location. |
+| Page: "Could not load the forecast (HTTP 404)" | `data-src` does not match the JSON location. |
 | Page shows old forecast without warning | Browser/host cache; see [9.4](#94-caching). |
 | Times shifted by 1–2 hours | `timezone` missing in the config (defaults to UTC). |
 | Workflow does not run on schedule | `FORECAST_SPOT` not set, not the default branch, or disabled after 60 days of inactivity ([7.5](#75-things-to-know)). |

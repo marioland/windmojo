@@ -227,7 +227,7 @@ class TestServer:
         with urllib.request.urlopen(
             urllib.request.Request(base + "/api/update", method="POST")
         ) as r:
-            assert "aktuell" in " ".join(json.loads(r.read())["messages"])
+            assert "up to date" in " ".join(json.loads(r.read())["messages"])
         assert calls == [1]
 
     def test_status_history_and_csv(self, server):

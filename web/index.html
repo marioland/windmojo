@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Windprognose</title>
+<title>Wind forecast</title>
 <!--
   Windmojo forecast page. Displays the JSON written by `python cli.py predict`.
   Self-contained: no external scripts, fonts or CDNs (no visitor data to third parties).
@@ -13,23 +13,48 @@
 -->
 <style>
   .windmojo {
-    --bg: #ffffff; --fg: #1d2430; --muted: #5f6b7a; --line: #e3e7ec;
-    --model: #0b6bcb; --openmeteo: #b0712a; --gust: #9aa5b1; --measured: #1f8f4e;
+    --bg: #ffffff; --fg: #1d2430; --muted: #5f6b7a; --line: #e3e7ec; --panel: #f5f7f9; --shade: #eef1f4;
+    --model: #0b6bcb; --openmeteo: #c77a22; --gust: #9aa5b1; --measured: #1f8f4e;
     --warn-bg: #fff4e5; --warn-fg: #8a4b00;
     font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     color: var(--fg); background: var(--bg);
-    max-width: 960px; margin: 0 auto; padding: 16px;
+    max-width: 1000px; margin: 0 auto; padding: 16px;
   }
   @media (prefers-color-scheme: dark) {
     .windmojo {
-      --bg: #12161c; --fg: #e6e9ee; --muted: #9aa5b1; --line: #2a313b;
-      --model: #5aa9ff; --openmeteo: #e0a35c; --gust: #6b7682; --measured: #4cd38a;
+      --bg: #12161c; --fg: #e6e9ee; --muted: #9aa5b1; --line: #2a313b; --panel: #1a2029; --shade: #1c232d;
+      --model: #5aa9ff; --openmeteo: #e8a25a; --gust: #6b7682; --measured: #4cd38a;
       --warn-bg: #3a2a12; --warn-fg: #ffcf8a;
     }
   }
   body { margin: 0; background: #ffffff; }
   @media (prefers-color-scheme: dark) { body { background: #12161c; } }
-  .windmojo h1 { font-size: 1.4rem; margin: 0 0 4px; }
+
+  /* Header: what the project is about, at a glance */
+  .windmojo .hero { border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px 16px; margin-bottom: 16px; }
+  .windmojo .hero-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
+  .windmojo .hero h1 { font-size: 1.75rem; margin: 0 0 4px; letter-spacing: -.01em; }
+  .windmojo .hero h1 span { color: var(--muted); font-weight: 500; }
+  .windmojo .tagline { color: var(--muted); font-size: 1rem; margin: 0; max-width: 640px; }
+  .windmojo .score { text-align: right; flex: none; }
+  .windmojo .score b { display: block; font-size: 2.6rem; line-height: 1; color: var(--model); }
+  .windmojo .score span { display: block; font-size: .9rem; }
+  .windmojo .score small { display: block; color: var(--muted); font-size: .78rem; margin-top: 2px; }
+  .windmojo .hero .chart { margin: 12px 0 10px; }
+  .windmojo .sources { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .windmojo .source { background: var(--panel); border-radius: 8px; padding: 9px 12px 10px; border-top: 4px solid; }
+  .windmojo .source.measured { border-top-color: var(--measured); }
+  .windmojo .source.openmeteo { border-top-color: var(--openmeteo); border-top-style: dashed; }
+  .windmojo .source.model { border-top-color: var(--model); }
+  .windmojo .source h3 { font-size: .98rem; margin: 0 0 2px; }
+  .windmojo .source p { margin: 0; color: var(--muted); font-size: .85rem; }
+  @media (max-width: 700px) {
+    .windmojo .hero-top { flex-direction: column; }
+    .windmojo .score { text-align: left; }
+    .windmojo .sources { grid-template-columns: 1fr; }
+  }
+
+  .windmojo h2 { font-size: 1.05rem; margin: 0 0 6px; }
   .windmojo .meta { color: var(--muted); font-size: .9rem; margin-bottom: 12px; }
   .windmojo .warn { background: var(--warn-bg); color: var(--warn-fg); padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; }
   .windmojo .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
@@ -42,18 +67,18 @@
   .windmojo .toolbar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 12px; font-size: .9rem; }
   .windmojo .toolbar a { color: var(--model); }
   .windmojo .muted { color: var(--muted); }
+  .windmojo .summary { background: var(--panel); padding: 8px 12px; border-radius: 6px; margin: 0 0 12px; }
+  .windmojo .summary ul { margin: 2px 0 0; padding-left: 18px; }
+  .windmojo .summary .good { color: var(--measured); font-weight: 600; }
   .windmojo .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .85rem; color: var(--muted); margin: 4px 0 8px; }
   .windmojo .legend i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 6px; }
   .windmojo .chart { overflow-x: auto; }
   .windmojo .chart svg { width: 100%; min-width: 640px; height: auto; display: block; }
   .windmojo .day { margin-top: 18px; }
-  .windmojo .day h2, .windmojo .history h3 { font-size: 1.05rem; margin: 0 0 6px; }
   .windmojo .history { margin-top: 28px; }
   .windmojo .history > h2 { font-size: 1.2rem; margin: 0 0 4px; }
   .windmojo .history section { margin-top: 16px; }
-  .windmojo .summary { background: var(--line); padding: 8px 12px; border-radius: 6px; margin: 8px 0 12px; }
-  .windmojo .summary ul { margin: 2px 0 0; padding-left: 18px; }
-  .windmojo .summary .good { color: var(--measured); font-weight: 600; }
+  .windmojo .history h3 { font-size: 1.05rem; margin: 0 0 6px; }
   .windmojo .scroll { overflow-x: auto; }
   .windmojo table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
   .windmojo th, .windmojo td { padding: 3px 6px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
@@ -78,7 +103,7 @@
 <!-- Embed: copy this div, the <style> block and the <script> block into your page.
      data-src: URL of the forecast JSON (relative to the page or absolute). -->
 <div class="windmojo" id="windmojo" data-src="greifensee.json">
-  <p>Prognose wird geladen …</p>
+  <p>Loading forecast …</p>
 </div>
 
 <script>
@@ -88,22 +113,29 @@
   var root = document.getElementById("windmojo");
   var STALE_HOURS = 12;   // Warn when the forecast is older (not updated?)
   var HISTORY_DAYS = 7;   // Past days shown when served by `cli.py serve`
-  // Overview at the top: hours with Windmojo mean wind in this range (knots), daytime only
-  var SESSION = { name: "Wingfoilen", minKn: 10, maxKn: 15, fromHour: 8, toHour: 20 };
+  var HERO_PAST_DAYS = 3; // Past days in the header chart
+  // Overview: hours with Windmojo mean wind in this range (knots), daytime only
+  var SESSION = { name: "Wingfoiling", minKn: 10, maxKn: 15, fromHour: 8, toHour: 20 };
   var KN = 1.943844;
   var UNITS = {
     "m/s": { factor: 1, digits: 1 },
-    "kn": { factor: 1.943844, digits: 0 },
+    "kn": { factor: KN, digits: 0 },
     "km/h": { factor: 3.6, digits: 0 }
   };
   var SERIES = [
-    { key: "openmeteo_gusts", color: "var(--gust)", dash: "2 3", width: 1.5, label: "Böen (Open-Meteo)" },
-    { key: "openmeteo_wind_speed", color: "var(--openmeteo)", dash: "6 4", width: 1.8, label: "Open-Meteo (Wettermodell)" },
-    { key: "wind_speed", color: "var(--model)", dash: "", width: 2.6, label: "Windmojo (lokales Modell)" },
-    { key: "hindcast_speed", color: "var(--model)", dash: "2 4", width: 2, label: "Windmojo nachträglich (Wetterdaten des Tages)" },
-    { key: "measured_speed", color: "var(--measured)", dash: "", width: 2.2, label: "Gemessen" }
+    { key: "openmeteo_gusts", color: "var(--gust)", dash: "2 3", width: 1.5, label: "Gusts (weather model)" },
+    { key: "openmeteo_wind_speed", color: "var(--openmeteo)", dash: "6 4", width: 1.8, label: "Weather model (Open-Meteo)" },
+    { key: "wind_speed", color: "var(--model)", dash: "", width: 2.6, label: "Windmojo (spot forecast)" },
+    { key: "hindcast_speed", color: "var(--model)", dash: "2 4", width: 2, label: "Windmojo hindcast (weather data of the day)" },
+    { key: "measured_speed", color: "var(--measured)", dash: "", width: 2.2, label: "Measured" }
   ];
-  var WEEKDAYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+  var HERO_SERIES = [
+    { key: "openmeteo_wind_speed", color: "var(--openmeteo)", dash: "7 5", width: 2.4 },
+    { key: "model", color: "var(--model)", dash: "", width: 3.2 },
+    { key: "measured_speed", color: "var(--measured)", dash: "", width: 3 }
+  ];
+  var WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   var unit = "m/s";
   var data = null;
   var local = null;       // Status of `cli.py serve`, null for a static page
@@ -120,6 +152,8 @@
     });
   }
 
+  function isNum(v) { return v !== null && v !== undefined; }
+
   // Times are local to the spot ("YYYY-MM-DDTHH:MM"); parse without the
   // browser's time zone so visitors abroad see the spot's local time.
   function parts(t) {
@@ -129,23 +163,30 @@
   function dayLabel(date) {
     var y = +date.slice(0, 4), m = +date.slice(5, 7), d = +date.slice(8, 10);
     var wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-    return WEEKDAYS[wd] + " " + d + "." + m + ".";
+    return WEEKDAYS[wd] + " " + d + " " + MONTHS[m - 1];
   }
 
   function timeLabel(t) {
     return dayLabel(t.slice(0, 10)) + " " + t.slice(11, 16);
   }
 
+  function created(iso) {
+    return new Date(iso).toLocaleString("en-GB", {
+      timeZone: data.timezone, weekday: "short", day: "numeric", month: "short",
+      hour: "2-digit", minute: "2-digit"
+    });
+  }
+
   function fmt(v) {
-    if (v === null || v === undefined) return "–";
+    if (!isNum(v)) return "–";
     var u = UNITS[unit];
     return (v * u.factor).toFixed(u.digits);
   }
 
   // Wind direction is where the wind comes from; the arrow points where it blows to
   function arrow(deg) {
-    if (deg === null || deg === undefined) return "";
-    return '<span class="arrow" title="aus ' + deg + '°" style="transform:rotate(' +
+    if (!isNum(deg)) return "";
+    return '<span class="arrow" title="from ' + deg + '°" style="transform:rotate(' +
       (deg + 180) + 'deg)">↑</span>';
   }
 
@@ -174,7 +215,7 @@
   }
 
   function present(hours, key) {
-    return hours.some(function (h) { return h[key] !== null && h[key] !== undefined; });
+    return hours.some(function (h) { return isNum(h[key]); });
   }
 
   function legend(hours) {
@@ -184,17 +225,22 @@
       }).join("") + "</div>";
   }
 
-  function chart(days) {
-    var W = 900, H = 260, L = 34, R = 8, T = 10, B = 34;
+  // Line chart over days (nights are not forecast: a gap between days).
+  // options: series, height, nowTime (marks past hours), labels (bigger fonts)
+  function chart(days, options) {
+    options = options || {};
+    var series = options.series || SERIES;
+    var W = 960, H = options.height || 260, L = 34, R = 8, T = options.nowTime ? 26 : 10, B = 34;
+    var font = options.large ? 13 : 11;
     var n = 0;
     days.forEach(function (d) { n += d.hours.length; });
     if (!n) return "";
-    var gap = 4;  // Horizontal gap between days (nights are not forecast)
+    var gap = 4;
     var slots = n + gap * (days.length - 1);
     var max = 0;
     days.forEach(function (d) {
       d.hours.forEach(function (h) {
-        SERIES.forEach(function (s) { max = Math.max(max, h[s.key] || 0); });
+        series.forEach(function (s) { max = Math.max(max, h[s.key] || 0); });
       });
     });
     var u = UNITS[unit];
@@ -203,29 +249,54 @@
     function x(i) { return L + (i + 0.5) * (W - L - R) / slots; }
     function y(v) { return T + (1 - v * u.factor / top) * (H - T - B); }
 
-    var svg = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Windprognose Diagramm">';
+    var svg = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Wind forecast chart">';
+
+    // Past hours (left of "now") shaded
+    var nowX = null;
+    if (options.nowTime) {
+      var i0 = 0;
+      days.forEach(function (d) {
+        d.hours.forEach(function (h, k) {
+          if (nowX === null && h.time.slice(0, 13) >= options.nowTime.slice(0, 13)) nowX = x(i0 + k) - (W - L - R) / slots / 2;
+        });
+        i0 += d.hours.length + gap;
+      });
+      if (nowX === null) nowX = W - R;
+      if (nowX > L) {
+        svg += '<rect x="' + L + '" y="' + T + '" width="' + (nowX - L) + '" height="' + (H - T - B) + '" fill="var(--shade)"/>';
+        svg += '<text x="' + (L + 6) + '" y="' + (T - 9) + '" font-size="' + font + '" fill="var(--muted)">' +
+          esc(options.pastLabel || "Past") + "</text>";
+      }
+      svg += '<line x1="' + nowX + '" x2="' + nowX + '" y1="' + (T - 4) + '" y2="' + (H - B) +
+        '" stroke="var(--fg)" stroke-width="1.5" stroke-dasharray="3 3"/>';
+      svg += '<text x="' + (nowX + 6) + '" y="' + (T - 9) + '" font-size="' + font + '" font-weight="600" fill="var(--fg)">' +
+        "now → forecast</text>";
+    }
+
     for (var g = 0; g <= top; g += step) {
       svg += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(g / u.factor) + '" y2="' + y(g / u.factor) +
         '" stroke="var(--line)"/>';
       svg += '<text x="' + (L - 6) + '" y="' + (y(g / u.factor) + 4) +
-        '" text-anchor="end" font-size="11" fill="var(--muted)">' + g + "</text>";
+        '" text-anchor="end" font-size="' + font + '" fill="var(--muted)">' + g + "</text>";
     }
+    svg += '<text x="' + (L - 6) + '" y="' + (H - B + 16) + '" text-anchor="end" font-size="' + (font - 1) +
+      '" fill="var(--muted)">' + esc(unit) + "</text>";
 
     var i = 0;
     days.forEach(function (d) {
       var start = i;
-      SERIES.forEach(function (s) {
+      series.forEach(function (s) {
         var pts = [];
         d.hours.forEach(function (h, k) {
-          if (h[s.key] !== null && h[s.key] !== undefined) pts.push(x(start + k).toFixed(1) + "," + y(h[s.key]).toFixed(1));
+          if (isNum(h[s.key])) pts.push(x(start + k).toFixed(1) + "," + y(h[s.key]).toFixed(1));
         });
         if (pts.length) {
-          svg += '<polyline fill="none" stroke="' + s.color + '" stroke-width="' + s.width + '"' +
+          svg += '<polyline fill="none" stroke="' + s.color + '" stroke-width="' + s.width + '" stroke-linejoin="round"' +
             (s.dash ? ' stroke-dasharray="' + s.dash + '"' : "") + ' points="' + pts.join(" ") + '"/>';
         }
       });
       var mid = (x(start) + x(start + d.hours.length - 1)) / 2;
-      svg += '<text x="' + mid + '" y="' + (H - 12) + '" text-anchor="middle" font-size="12" fill="var(--muted)">' +
+      svg += '<text x="' + mid + '" y="' + (H - 12) + '" text-anchor="middle" font-size="' + (font + 1) + '" fill="var(--muted)">' +
         dayLabel(d.date) + "</text>";
       i += d.hours.length + gap;
     });
@@ -239,9 +310,8 @@
     day.hours.forEach(function (h) { scale = Math.max(scale, h.wind_speed || 0); });
     var rows = day.hours.map(function (h) {
       var isPast = now && h.time.slice(0, 13) < now.slice(0, 13);
-      var hasMeasured = h.measured_speed !== null && h.measured_speed !== undefined;
       var w = scale ? Math.round(100 * (h.wind_speed || 0) / Math.max(scale, 8)) : 0;
-      return '<tr class="' + (isPast ? "past" : "") + (hasMeasured ? " has-measured" : "") + '">' +
+      return '<tr class="' + (isPast ? "past" : "") + (isNum(h.measured_speed) ? " has-measured" : "") + '">' +
         '<td class="hour">' + String(parts(h.time).hour).padStart(2, "0") + ":00</td>" +
         "<td>" + arrow(h.wind_direction) + "</td>" +
         "<td><strong>" + fmt(h.wind_speed) + "</strong></td>" +
@@ -253,16 +323,14 @@
           "</td><td>" + arrow(h.measured_direction) + "</td>" : "") + "</tr>";
     }).join("");
     return '<div class="scroll"><table>' +
-      '<thead><tr><th class="hour">Zeit</th><th>Richtung</th><th>Windmojo</th><th class="bar"></th>' +
-      (hindcast ? "<th>Nachträglich</th>" : "") +
-      "<th>Open-Meteo</th><th>Böen</th>" +
-      (measured ? "<th>Gemessen</th><th>Böen gem.</th><th>Richtung gem.</th>" : "") +
+      '<thead><tr><th class="hour">Time</th><th>Direction</th><th>Windmojo</th><th class="bar"></th>' +
+      (hindcast ? "<th>Hindcast</th>" : "") +
+      "<th>Weather model</th><th>Gusts</th>" +
+      (measured ? "<th>Measured</th><th>Measured gusts</th><th>Measured direction</th>" : "") +
       "</tr></thead><tbody>" + rows + "</tbody></table></div>";
   }
 
-  function isNum(v) { return v !== null && v !== undefined; }
-
-  // Mean absolute error of a Windmojo forecast and of Open-Meteo against the
+  // Mean absolute error of a Windmojo forecast and of the weather model against the
   // measurement, on the same hours (all three present)
   function compare(hours, key) {
     var model = 0, om = 0, n = 0;
@@ -273,43 +341,86 @@
         n++;
       }
     });
-    return n ? { model: model / n, om: om / n, n: n } : null;
+    return n ? { model: model / n, om: om / n, n: n, pct: Math.round(100 * (1 - model / om)) } : null;
   }
 
-  // "38 % genauer als Open-Meteo (Ø 0.5 statt 0.8 m/s, 18 h)"
+  // "42 % more accurate than the weather model (mean error 0.5 instead of 0.8 m/s, 18 h)"
   function better(c) {
-    var pct = c.om ? Math.round(100 * (1 - c.model / c.om)) : 0;
-    return "<strong>" + Math.abs(pct) + " % " + (pct >= 0 ? "genauer" : "ungenauer") + "</strong> als Open-Meteo (Ø " +
-      fmt(c.model) + " statt " + fmt(c.om) + " " + esc(unit) + ", " + c.n + " h)";
+    return "<strong>" + Math.abs(c.pct) + " % " + (c.pct >= 0 ? "more" : "less") + " accurate</strong> " +
+      "than the weather model (mean error " + fmt(c.model) + " instead of " + fmt(c.om) + " " + esc(unit) +
+      ", " + c.n + " h)";
+  }
+
+  // Header chart: past days the model was not trained on (forecast as shown then,
+  // else hindcast), then today and the forecast days
+  function heroDays(days, today) {
+    var result = [];
+    past.filter(function (d) { return d.date < today; }).forEach(function (d) {
+      var hours = d.hours.map(function (h) {
+        var model = isNum(h.wind_speed) ? h.wind_speed : (d.hindcast_in_training ? null : h.hindcast_speed);
+        return { time: h.time, model: isNum(model) ? model : null,
+          openmeteo_wind_speed: h.openmeteo_wind_speed, measured_speed: h.measured_speed };
+      });
+      if (present(hours, "model") && present(hours, "measured_speed")) result.push({ date: d.date, hours: hours });
+    });
+    result = result.slice(-HERO_PAST_DAYS);
+    days.forEach(function (d) {
+      result.push({ date: d.date, hours: d.hours.map(function (h) {
+        return { time: h.time, model: h.wind_speed, openmeteo_wind_speed: h.openmeteo_wind_speed,
+          measured_speed: isNum(h.measured_speed) ? h.measured_speed : null };
+      }) });
+    });
+    return result;
+  }
+
+  function hero(days, now) {
+    var hdays = heroDays(days, now.slice(0, 10));
+    var measured = [];
+    hdays.forEach(function (d) {
+      d.hours.forEach(function (h) { if (h.time.slice(0, 13) < now.slice(0, 13)) measured.push(h); });
+    });
+    var score = compare(measured, "model");
+    var pastDays = {};
+    measured.forEach(function (h) { if (isNum(h.measured_speed)) pastDays[h.time.slice(0, 10)] = true; });
+
+    var html = '<header class="hero"><div class="hero-top"><div>' +
+      "<h1>Windmojo <span>· " + esc(data.name) + "</span></h1>" +
+      '<p class="tagline">Weather models forecast the wind for a whole region. Windmojo learns from years of ' +
+      "measurements at one spot and turns the regional forecast into a forecast for exactly this spot.</p></div>";
+    if (score && score.n >= 6) {
+      html += '<div class="score"><b>' + Math.abs(score.pct) + " %</b><span>" +
+        (score.pct >= 0 ? "more" : "less") + " accurate than the weather model</span><small>last " +
+        Object.keys(pastDays).length + " days · " + score.n + " measured hours · mean error " + fmt(score.model) +
+        " vs. " + fmt(score.om) + " " + esc(unit) + "</small></div>";
+    }
+    html += "</div>" + '<div class="chart">' +
+      chart(hdays, {
+        series: HERO_SERIES, height: 300, nowTime: now, large: true,
+        pastLabel: score ? "Past days: forecast vs. measured" : "Past hours"
+      }) + "</div>" +
+      '<div class="sources">' +
+      (measured.some(function (h) { return isNum(h.measured_speed); }) ?
+        '<div class="source measured"><h3>Measured</h3><p>Wind measured at the spot – the truth both forecasts ' +
+        "are judged by.</p></div>" : "") +
+      '<div class="source openmeteo"><h3>Weather model</h3><p>Open-Meteo forecast for the area around the spot (10 m wind). ' +
+      "A coarse grid that knows nothing about the lake.</p></div>" +
+      '<div class="source model"><h3>Windmojo</h3><p>Forecast for this spot: a model trained on years of local ' +
+      "measurements corrects the weather model.</p></div>" +
+      "</div></header>";
+    return html;
   }
 
   function toolbar() {
     var html = '<div class="toolbar">' +
       '<button type="button" class="primary" id="wm-update"' + (busy ? " disabled" : "") + ">" +
-      (busy ? "Aktualisiere … (bis 1 Minute)" : "Prognose" + (local.measurements_update ? " und Messdaten" : "") +
-        " aktualisieren") + "</button>" +
-      '<span class="muted">Messdaten bis ' + (local.measurements_until ? esc(timeLabel(local.measurements_until)) : "–") +
+      (busy ? "Updating … (up to a minute)" : "Update forecast" + (local.measurements_update ? " and measurements" : "")) +
+      "</button>" +
+      '<span class="muted">Measurements until ' + (local.measurements_until ? esc(timeLabel(local.measurements_until)) : "–") +
       "</span>" +
-      '<span><a href="download/forecast.csv">Prognose als CSV</a> · ' +
-      '<a href="download/history.csv?days=30">Rückblick 30 Tage als CSV</a></span></div>';
+      '<span><a href="download/forecast.csv">Forecast as CSV</a> · ' +
+      '<a href="download/history.csv?days=30">Look back 30 days as CSV</a></span></div>';
     if (messages.length) html += '<div class="meta">' + messages.map(esc).join(" ") + "</div>";
     return html;
-  }
-
-  // Accuracy over the past days; hindcasts of days the model was trained on don't count
-  function accuracy(today) {
-    var days = past.filter(function (d) { return d.date < today; });
-    var shown = [], after = [];
-    days.forEach(function (d) {
-      shown = shown.concat(d.hours);
-      if (!d.hindcast_in_training) after = after.concat(d.hours);
-    });
-    var total = compare(shown, "wind_speed"), totalAfter = compare(after, "hindcast_speed");
-    if (!total && !totalAfter) return "";
-    return "<div><strong>Letzte " + days.length + " Tage</strong><ul>" +
-      (total ? "<li>Prognose, wie angezeigt: " + better(total) + "</li>" : "") +
-      (totalAfter ? "<li>Nachträglich mit den Wetterdaten des Tages: " + better(totalAfter) +
-        " – ohne Tage aus dem Training</li>" : "") + "</ul></div>";
   }
 
   // Time windows in which the Windmojo mean wind is in the session range, per forecast day
@@ -330,40 +441,37 @@
         var last = windows[windows.length - 1];
         if (last && last[1] === hour) last[1] = hour + 1; else windows.push([hour, hour + 1]);
       });
-      var label = d.date === today ? "Heute" : dayLabel(d.date);
+      var label = d.date === today ? "Today" : dayLabel(d.date);
       var text = windows.length ?
-        '<span class="good">' + windows.map(function (w) { return w[0] + "–" + w[1] + " Uhr"; }).join(", ") +
+        '<span class="good">' + windows.map(function (w) { return w[0] + "–" + w[1] + " h"; }).join(", ") +
           "</span>" :
-        max > SESSION.maxKn ? "zu stark (bis " + Math.round(max) + " kn)" :
-        max >= SESSION.minKn - 1 ? "knapp zu wenig (max " + max.toFixed(1) + " kn)" :
-        "zu wenig Wind (max " + Math.round(max) + " kn)";
+        max > SESSION.maxKn ? "too strong (up to " + Math.round(max) + " kn)" :
+        max >= SESSION.minKn - 1 ? "just below (max " + max.toFixed(1) + " kn)" :
+        "not enough wind (max " + Math.round(max) + " kn)";
       return "<li>" + label + ": " + text + "</li>";
     }).filter(Boolean);
     if (!rows.length) return "";
-    return "<div><strong>" + esc(SESSION.name) + " (" + SESSION.minKn + "–" + SESSION.maxKn + " kn Mittelwind, " +
-      SESSION.fromHour + "–" + SESSION.toHour + " Uhr, laut Windmojo)</strong><ul>" + rows.join("") + "</ul></div>";
+    return '<div class="summary"><strong>' + esc(SESSION.name) + " (" + SESSION.minKn + "–" + SESSION.maxKn +
+      " kn mean wind, " + SESSION.fromHour + "–" + SESSION.toHour + " h, Windmojo)</strong><ul>" +
+      rows.join("") + "</ul></div>";
   }
 
   function history(today) {
     var days = past.filter(function (d) { return d.date < today; }).reverse();
-    var html = '<div class="history"><h2>Rückblick</h2><div class="meta">Durchgezogen: Prognose, wie sie ' +
-      "damals angezeigt wurde (füllt sich mit jeder Aktualisierung). Gepunktet: was das Modell nachträglich " +
-      "mit den Wetterdaten des Tages sagt. Grün: Messung.</div>";
-    if (!days.length) return html + '<p class="muted">Noch keine vergangenen Tage im Archiv.</p></div>';
-
+    var html = '<div class="history"><h2>Look back</h2><div class="meta">Solid: forecast as shown then (fills ' +
+      "up with every update). Dotted: what the model says afterwards with the weather data of the day. " +
+      "Green: measured.</div>";
+    if (!days.length) return html + '<p class="muted">No past days in the archive yet.</p></div>';
     days.forEach(function (d) {
       var then = compare(d.hours, "wind_speed"), later = compare(d.hours, "hindcast_speed");
-      var info = d.forecast_generated_at ?
-        "Prognose vom " + esc(new Date(d.forecast_generated_at).toLocaleString("de-CH", {
-          timeZone: data.timezone, weekday: "short", day: "numeric", month: "numeric",
-          hour: "2-digit", minute: "2-digit"
-        })) : "keine archivierte Prognose";
-      if (then) info += "<br>Damals: " + better(then);
-      if (later) info += "<br>Nachträglich: " + better(later) +
-        (d.hindcast_in_training ? " – Tag war im Training des Modells, deshalb zu gut" : "");
+      var info = d.forecast_generated_at ? "Forecast from " + esc(created(d.forecast_generated_at)) :
+        "no archived forecast";
+      if (then) info += "<br>As shown then: " + better(then);
+      if (later) info += "<br>Hindcast: " + better(later) +
+        (d.hindcast_in_training ? " – day was part of the model's training, so this is too good" : "");
       html += "<section><h3>" + dayLabel(d.date) + '</h3><div class="meta">' + info + "</div>" +
         legend(d.hours) + '<div class="chart">' + chart([d]) + "</div>" +
-        "<details><summary>Stundenwerte</summary>" + table(d, "") + "</details></section>";
+        "<details><summary>Hourly values</summary>" + table(d, "") + "</details></section>";
     });
     return html + "</div>";
   }
@@ -375,22 +483,17 @@
     var now = spotNow(data.timezone);
     var mae = data.model && data.model.test_mae;
 
-    var html = "<h1>Windprognose " + esc(data.name) + "</h1>" +
-      '<div class="meta">Aktualisiert: ' + esc(generated.toLocaleString("de-CH", {
-        timeZone: data.timezone, weekday: "short", day: "numeric", month: "numeric",
-        hour: "2-digit", minute: "2-digit"
-      })) + " · Zeiten in Ortszeit (" + esc(data.timezone) + ")" +
-      (mae ? " · Modellfehler im Test ±" + fmt(mae) + " " + esc(unit) : "") + "</div>";
-
+    var html = hero(days, now);
+    html += '<div class="meta">Updated: ' + esc(created(data.generated_at)) + " · Local time (" +
+      esc(data.timezone) + ")" + (mae ? " · Model error in test ±" + fmt(mae) + " " + esc(unit) : "") + "</div>";
     if (local) html += toolbar();
-    var overview = sessions(days, now) + (local ? accuracy(now.slice(0, 10)) : "");
-    if (overview) html += '<div class="summary">' + overview + "</div>";
     if (ageHours > STALE_HOURS) {
-      html += '<div class="warn">Diese Prognose ist ' + Math.round(ageHours) + " Stunden alt" +
-        (local ? " – bitte aktualisieren." : " und wurde nicht aktualisiert.") + "</div>";
+      html += '<div class="warn">This forecast is ' + Math.round(ageHours) + " hours old" +
+        (local ? " – please update." : " and has not been updated.") + "</div>";
     }
+    html += sessions(days, now);
 
-    html += '<div class="controls" role="group" aria-label="Einheit">' +
+    html += '<div class="controls" role="group" aria-label="Unit">' +
       Object.keys(UNITS).map(function (k) {
         return '<button type="button" data-unit="' + k + '" aria-pressed="' + (k === unit) + '">' + k + "</button>";
       }).join("") + "</div>";
@@ -401,9 +504,9 @@
       return '<section class="day"><h2>' + dayLabel(d.date) + "</h2>" + table(d, now) + "</section>";
     }).join("");
     if (local) html += history(now.slice(0, 10));
-    html += '<footer>Wind in ' + esc(unit) + ', Mittelwind 10 m über Grund. ' +
-      'Wetterdaten: <a href="https://open-meteo.com/" rel="noopener">Open-Meteo.com</a> (CC BY 4.0). ' +
-      'Prognose: <a href="https://github.com/marioland/windmojo" rel="noopener">Windmojo</a>.</footer>';
+    html += '<footer>Wind in ' + esc(unit) + ", mean wind 10 m above ground. " +
+      'Weather data: <a href="https://open-meteo.com/" rel="noopener">Open-Meteo.com</a> (CC BY 4.0). ' +
+      'Forecast: <a href="https://github.com/marioland/windmojo" rel="noopener">Windmojo</a>.</footer>';
 
     root.innerHTML = html;
     Array.prototype.forEach.call(root.querySelectorAll("button[data-unit]"), function (b) {
@@ -445,7 +548,7 @@
     busy = true; messages = []; render();
     getJson("api/update", { method: "POST" })
       .then(function (result) { messages = result.messages || []; })
-      .catch(function (err) { messages = ["Fehler: " + err.message]; })
+      .catch(function (err) { messages = ["Error: " + err.message]; })
       .then(function () { return Promise.all([loadForecast(), loadLocal()]); })
       .catch(function () {})
       .then(function () { busy = false; render(); });
@@ -459,10 +562,10 @@
       loadLocal().then(function () {
         if (local) {
           data = { name: local.name, generated_at: new Date().toISOString(), timezone: "UTC", hours: [] };
-          messages = ["Noch keine Prognose – bitte aktualisieren."];
+          messages = ["No forecast yet – please update."];
           render();
         } else {
-          root.innerHTML = '<p class="warn">Prognose konnte nicht geladen werden (' + esc(err.message) + ").</p>";
+          root.innerHTML = '<p class="warn">Could not load the forecast (' + esc(err.message) + ").</p>";
         }
       });
     });
