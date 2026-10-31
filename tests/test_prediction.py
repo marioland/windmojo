@@ -178,7 +178,7 @@ class TestTrainerMedians:
         train = pd.DataFrame({"a": rng.normal(10, 1, 50), "b": rng.normal(size=50)})
         train["target"] = train["a"]
         trainer = SpatialHeavyTrainer({"xgboost": {"n_estimators": 5}})
-        trainer.train(train, train.copy(), ["a", "b"])
+        trainer.train(train, train.copy(), train.copy(), ["a", "b"])
         return trainer
 
     def test_medians_survive_save_and_load(self, tmp_path):
@@ -197,3 +197,24 @@ class TestTrainerMedians:
         X = pd.DataFrame({"a": [np.nan, 100.0], "b": [0.0, 0.0]})
         filled = pd.DataFrame({"a": [trainer.feature_medians["a"], 100.0], "b": 0.0})
         np.testing.assert_allclose(trainer.predict(X), trainer.predict(filled))
+
+
+class TestTrainerEarlyStopping:
+    """Early stopping uses the validation days, the test days only give metrics."""
+
+    def test_test_data_does_not_change_the_model(self):
+        rng = np.random.default_rng(0)
+        data = pd.DataFrame({"a": rng.normal(size=300), "b": rng.normal(size=300)})
+        data["target"] = data["a"] + rng.normal(scale=0.5, size=300)
+        train, validation, test = data[:200], data[200:250], data[250:]
+        noise = test.assign(target=rng.normal(scale=5, size=len(test)))
+
+        params = {"xgboost": {"n_estimators": 200, "early_stopping_rounds": 5}}
+        models = []
+        for test_data in (test, noise):
+            trainer = SpatialHeavyTrainer(params)
+            trainer.train(train, validation, test_data, ["a", "b"])
+            models.append(trainer)
+
+        assert models[0].model.best_iteration == models[1].model.best_iteration
+        np.testing.assert_allclose(models[0].predict(test), models[1].predict(test))

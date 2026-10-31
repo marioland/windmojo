@@ -297,6 +297,25 @@ def get_test_dates(
     return sorted(test_dates)
 
 
+def get_validation_dates(
+    train_dates: List[datetime.date], every_nth: int = 10
+) -> List[datetime.date]:
+    """
+    Get early-stopping days: every nth training day.
+
+    Spread over all seasons and disjoint from the test days, so early stopping
+    does not tune the model to the test days.
+
+    Args:
+        train_dates: Available training days (test days already removed)
+        every_nth: Take every nth day
+
+    Returns:
+        List of datetime.date objects for early stopping
+    """
+    return sorted(train_dates)[::every_nth]
+
+
 def get_forecast_config(config: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get forecast configuration with defaults.

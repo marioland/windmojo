@@ -13,6 +13,7 @@ from windmojo.config import (
     get_spot_dir,
     get_test_dates,
     get_training_config,
+    get_validation_dates,
     load_feature_selection,
     validate_config,
 )
@@ -306,3 +307,18 @@ class TestGetTestDates:
 
         # 3 months * 2 days = 6 test dates
         assert len(test_dates) == 6
+
+
+class TestGetValidationDates:
+    """Tests for get_validation_dates."""
+
+    def test_every_nth_day(self):
+        dates = [datetime.date(2025, 1, 1) + datetime.timedelta(days=i) for i in range(30)]
+        assert get_validation_dates(dates, every_nth=10) == dates[::10]
+
+    def test_disjoint_from_test_dates(self):
+        config = make_valid_config()
+        dates = [datetime.date(2025, 1, 1) + datetime.timedelta(days=i) for i in range(365)]
+        test_dates = set(get_test_dates(config, dates))
+        train_dates = [d for d in dates if d not in test_dates]
+        assert not set(get_validation_dates(train_dates)) & test_dates

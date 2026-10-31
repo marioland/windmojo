@@ -52,7 +52,8 @@ def features(spot):
 @click.option('--config', '-c', type=click.Path(exists=True), help='Config file (default: data/spots/{spot}/input/config.yaml)')
 def train(spot, config):
     """Train Spatial Heavy Unified model."""
-    from windmojo.config import load_config, get_paths, get_training_config, get_test_dates, load_feature_selection
+    from windmojo.config import (load_config, get_paths, get_training_config, get_test_dates,
+                                 get_validation_dates, load_feature_selection)
     from windmojo.training import SpatialHeavyTrainer
     from windmojo.units import measurement_unit, to_ms
     import pandas as pd
@@ -112,30 +113,32 @@ def train(spot, config):
         how='inner'
     ).dropna(subset=[target_col])
 
-    # Split train/test
+    # Split train/validation/test
     all_dates = sorted(merged['date'].unique())
     test_dates = get_test_dates(cfg, all_dates)
+    validation_dates = get_validation_dates([d for d in all_dates if d not in set(test_dates)])
 
-    click.echo(f"4. Splitting data ({len(test_dates)} test days)...")
-    train_mask = ~merged['date'].isin(test_dates)
+    click.echo(f"4. Splitting data ({len(test_dates)} test days, "
+               f"{len(validation_dates)} early-stopping days)...")
     test_mask = merged['date'].isin(test_dates)
+    validation_mask = merged['date'].isin(validation_dates)
 
-    train_df = merged[train_mask].copy()
-    test_df = merged[test_mask].copy()
+    def prepare(mask):
+        data = merged.loc[mask, selected_features + [target_col]]
+        return data.rename(columns={target_col: 'target'})
 
-    # Prepare training data
-    train_data = train_df[selected_features + [target_col]].copy()
-    train_data = train_data.rename(columns={target_col: 'target'})
-    test_data = test_df[selected_features + [target_col]].copy()
-    test_data = test_data.rename(columns={target_col: 'target'})
+    train_data = prepare(~test_mask & ~validation_mask)
+    validation_data = prepare(validation_mask)
+    test_data = prepare(test_mask)
 
     click.echo(f"   Train: {len(train_data)} samples")
+    click.echo(f"   Validation: {len(validation_data)} samples")
     click.echo(f"   Test: {len(test_data)} samples")
 
     # Train
     click.echo("\n5. Training model...")
     trainer = SpatialHeavyTrainer(training_cfg)
-    results = trainer.train(train_data, test_data, selected_features)
+    results = trainer.train(train_data, validation_data, test_data, selected_features)
 
     # Save
     click.echo("\n6. Saving model...")

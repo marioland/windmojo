@@ -41,6 +41,7 @@ class SpatialHeavyTrainer:
     def train(
         self,
         train_data: pd.DataFrame,
+        validation_data: pd.DataFrame,
         test_data: pd.DataFrame,
         feature_columns: List[str],
     ) -> Dict:
@@ -49,7 +50,9 @@ class SpatialHeavyTrainer:
 
         Args:
             train_data: Training data with target column
-            test_data: Test data with target column
+            validation_data: Early-stopping data with target column (days not
+                in train_data or test_data, see validation_mask())
+            test_data: Test data with target column (only used for metrics)
             feature_columns: List of feature column names (must include hour features)
 
         Returns:
@@ -60,6 +63,7 @@ class SpatialHeavyTrainer:
         logger.info("Training Spatial Heavy Unified model...")
         logger.info(f"  Features: {len(feature_columns)}")
         logger.info(f"  Train samples: {len(train_data)}")
+        logger.info(f"  Validation samples: {len(validation_data)}")
         logger.info(f"  Test samples: {len(test_data)}")
 
         # Verify hour features are present
@@ -71,6 +75,8 @@ class SpatialHeavyTrainer:
         # Prepare data
         X_train = train_data[feature_columns]
         y_train = train_data["target"]
+        X_val = validation_data[feature_columns]
+        y_val = validation_data["target"]
         X_test = test_data[feature_columns]
         y_test = test_data["target"]
 
@@ -90,16 +96,16 @@ class SpatialHeavyTrainer:
             X_train = X_train.fillna(self.feature_medians)
         if test_missing > 0:
             X_test = X_test.fillna(self.feature_medians)
+        X_val = X_val.fillna(self.feature_medians)
 
         # Train XGBoost
         logger.info("Training XGBoost model...")
 
         self.model = xgb.XGBRegressor(**self.params)
 
-        # Fit with early stopping
-        early_stopping = self.params.get("early_stopping_rounds", 50)
-
-        self.model.fit(X_train, y_train, eval_set=[(X_test, y_test)], verbose=False)
+        # Early stopping (early_stopping_rounds in params) on the validation
+        # days; stopping on the test days would make the test MAE optimistic
+        self.model.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=False)
 
         # Get predictions
         train_pred = self.model.predict(X_train)
@@ -117,6 +123,7 @@ class SpatialHeavyTrainer:
                 "rmse": float(train_rmse),
                 "samples": len(train_data),
             },
+            "validation": {"samples": len(validation_data)},
             "test": {
                 "mae": float(test_mae),
                 "rmse": float(test_rmse),
