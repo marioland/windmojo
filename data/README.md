@@ -11,7 +11,7 @@ currently in use, by different pipeline steps:
 | Layout | Used by |
 |--------|---------|
 | `data/[area]/[spot]/` (legacy) | download (`windmojo.data_fetcher`), feature engineering (`windmojo.feature_engineer`) |
-| `data/spots/[spot]/` (new) | `python cli.py train`, `evaluate` and `predict` |
+| `data/spots/[spot]/` (new) | `python cli.py train`, `evaluate`, `predict` and `serve` |
 
 A new spot therefore starts in the legacy layout and is moved to `spots/` with
 `python cli.py migrate` once features exist.

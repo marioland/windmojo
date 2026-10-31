@@ -6,7 +6,7 @@ described in [`data/README.md`](../data/README.md).
 | Format | Location | Used by |
 |--------|----------|---------|
 | Legacy | `config/[area]/[spot].yaml` (gitignored) | download, feature engineering |
-| Simplified | `data/spots/[spot]/input/config.yaml` | `python cli.py train` / `evaluate` |
+| Simplified | `data/spots/[spot]/input/config.yaml` | `python cli.py train` / `evaluate` / `predict` / `serve` |
 
 ## Structure
 

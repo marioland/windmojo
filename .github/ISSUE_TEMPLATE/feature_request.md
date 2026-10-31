@@ -1,20 +1,21 @@
 ---
 name: Feature request
-about: Suggest an idea for this project
+about: Suggest an idea for Windmojo
 title: ''
-labels: ''
+labels: enhancement
 assignees: ''
 
 ---
 
-**Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+**Problem**
+What are you trying to do, and what is missing? E.g. "At my spot the forecast misses the
+afternoon thermal wind."
 
-**Describe the solution you'd like**
-A clear and concise description of what you want to happen.
+**Proposed solution**
+What you would like Windmojo to do.
 
-**Describe alternatives you've considered**
-A clear and concise description of any alternative solutions or features you've considered.
+**Spot and data (if relevant)**
+Type of spot (lake, coast, valley), measurement source, how many years of data.
 
-**Additional context**
-Add any other context or screenshots about the feature request here.
+**Alternatives considered**
+Other solutions or workarounds you thought about.

@@ -8,32 +8,39 @@ Windmojo has been simplified to focus on a single, unified approach:
 - **Single model: one XGBoost model for all hours on all features** (removed Phase 1/Phase 2
   and feature selections)
 - **Clear separation**: input vs training vs models
-- **Unified CLI** at root level
+- **Unified CLI**: `python cli.py` at the repository root, or `windmojo` once installed
 
 ## Directory Structure
 
 ```
 windmojo/
-├── cli.py                          # Main CLI entry point
+├── cli.py                          # Entry point (calls windmojo/cli.py)
 ├── windmojo/                       # Core library
-│   ├── config.py                   # Configuration management
+│   ├── cli.py                      # Commands: train, evaluate, predict, serve, migrate
+│   ├── config.py                   # Configuration (simplified format)
+│   ├── units.py                    # Measurement units → m/s
+│   ├── web.py                      # Local forecast page (serve)
 │   ├── training/
-│   │   ├── __init__.py
-│   │   └── trainer.py              # UnifiedTrainer
+│   │   ├── trainer.py              # UnifiedTrainer
+│   │   └── objectives.py           # Timing-tolerant loss
 │   ├── evaluation/
-│   │   ├── __init__.py
 │   │   ├── metrics.py              # calculate_metrics()
 │   │   └── diagrams.py             # create_validation_diagrams()
-│   ├── download/                   # (TODO: implement)
-│   └── prediction/
-│       └── forecast.py             # Live forecast + JSON export (predict)
+│   ├── prediction/
+│   │   ├── forecast.py             # Live forecast + JSON export (predict)
+│   │   └── history.py              # Forecast archive, look back, CSV (serve)
+│   ├── features/pipeline.py        # Feature pipeline (training and live)
+│   ├── data/                       # Open-Meteo client and grid download
+│   ├── data_fetcher.py             # Download (legacy layout, not yet in cli.py)
+│   ├── feature_engineer.py         # Feature engineering (legacy layout)
+│   └── core/config.py              # Legacy config format
 │
 ├── data/spots/{spot}/              # Per-spot data
 │   ├── input/                      # User-provided inputs
 │   │   ├── config.yaml             # Spot configuration
 │   │   └── measurements.csv        # Historical measurements
 │   ├── training/                   # Training artifacts
-│   │   ├── raw/                    # Downloaded GFS data
+│   │   ├── raw/                    # Downloaded weather model data
 │   │   ├── features/               # Engineered features
 │   │   └── validation/             # Validation diagrams
 │   ├── models/                     # Production-ready models
@@ -48,7 +55,7 @@ windmojo/
 ```
 
 > **Transitional state:** download and feature engineering are not yet ported (see
-> sections 4 and 5 below). They still write to the legacy `data/{area}/{spot}/` layout.
+> sections 6 and 7 below). They still write to the legacy `data/{area}/{spot}/` layout.
 > New spots start in the legacy layout and are moved here with `migrate`.
 > See [data/README.md](data/README.md).
 
@@ -181,13 +188,9 @@ python cli.py train --spot dervio --until 2026-10-27
 5. Trains unified XGBoost model with a timing-tolerant loss (`time_tolerance`, see below)
 6. Saves model.json and metadata.json
 
-**Example output:**
-```
-Training Complete!
-Train MAE: 0.82 m/s
-Test MAE: 1.49 m/s
-Model saved to: data/spots/dervio/models/model.json
-```
+At the end it prints train and test MAE (m/s) and the model path. The test MAE of one
+split varies with the chosen days; for comparisons use walk-forward results (see
+[Performance](#performance)).
 
 ### 3. Evaluation
 
@@ -201,21 +204,12 @@ python cli.py evaluate --spot dervio
 2. Makes predictions on test dates
 3. Calculates metrics (MAE, RMSE, R², MBE)
 4. Creates validation diagrams (one per month)
-5. Compares: Our Model vs GFS Baseline vs Measurements
+5. Compares: Windmojo vs the raw weather model (labelled "GFS" in the diagrams) vs
+   measurements, with the MAE of both per month and overall
 
-**Example output:**
-```
-Evaluation Complete!
-Test MAE: 1.49 m/s
-Diagrams: 5 created in data/spots/dervio/training/validation
-  • validation_2025-01.png (MAE: 1.42, +4.3% improvement)
-  • validation_2025-03.png (MAE: 1.17, +28.1% improvement)
-  • validation_2025-05.png (MAE: 1.37, +2.9% improvement)
-  • validation_2025-07.png (MAE: 1.93, +7.5% improvement)
-  • validation_2025-09.png (MAE: 1.62, +9.4% improvement)
-
-Overall: 1.49 m/s MAE (+10.7% over GFS)
-```
+The diagrams land in `training/validation/validation_YYYY-MM.png`. The weather model
+here is uncalibrated; the fairer baseline (weather model calibrated to the spot) is in
+[Performance](#performance).
 
 ### 4. Predict (live forecast)
 
@@ -238,20 +232,34 @@ python cli.py predict --spot dervio --output /path/to/web/dervio.json
 Scheduling, website integration and hosting variants (cron on the web host,
 GitHub Actions + SFTP, own server): **[DEPLOYMENT.md](DEPLOYMENT.md)**.
 
-### 5. Download (TODO)
+### 5. Serve (local forecast page)
 
 ```bash
-# Download GFS data for date range
+python cli.py serve --spot dervio            # http://localhost:8000/
+```
+
+Forecast page with an update button (refreshes measurements and runs `predict`), the
+past days ("look back": forecast as shown then, hindcast, measurement) and CSV
+downloads. Options and configuration: [DEPLOYMENT.md](DEPLOYMENT.md#local-forecast-page-clipy-serve).
+
+### 6. Download (not yet implemented)
+
+Use `python -m windmojo.data_fetcher` (legacy layout, see README) until this exists. Planned interface:
+
+```bash
+# Download weather model data for a date range
 python cli.py download \
   --spot dervio \
   --start-date 2025-01-01 \
   --end-date 2025-12-31
 ```
 
-### 6. Features (TODO)
+### 7. Features (not yet implemented)
+
+Use `python -m windmojo.feature_engineer` (legacy layout, see README) until this exists. Planned interface:
 
 ```bash
-# Engineer features from raw GFS data
+# Engineer features from the raw weather model data
 python cli.py features --spot dervio
 ```
 
@@ -268,7 +276,7 @@ the pipeline.
    - Uses hour encoding: `hour`, `hour_sin`, `hour_cos`
    - No per-hour models needed
 
-2. **All features** (384 on Greifensee): GFS variables at the 9-point grid, spatial and
+2. **All features** (384 on Greifensee): weather model variables at the 9-point grid, spatial and
    vertical gradients, lags, rolling statistics, physics and snow indicators. A feature
    selection brought no gain in walk-forward tests on Greifensee and Dervio; the former
    packaged `spatial_heavy` list (164 features) was 0.024-0.035 m/s worse. Background:
@@ -300,11 +308,11 @@ the pipeline.
 
 Walk-forward, 15 test quarters, at least 2 years of training data:
 
-| Spot | MAE | GFS 10 m, linearly calibrated | MAE at ≥ 4 m/s |
+| Spot | MAE | Weather model 10 m, linearly calibrated | MAE at ≥ 4 m/s |
 |------|-----|-------------------------------|----------------|
 | Greifensee (2021-2026) | 0.69 m/s | 0.81 m/s | 1.20 m/s |
 
-Dervio (9 months of data, monthly blocks): MAE 1.53-1.56 m/s, GFS calibrated 1.69-1.74 m/s.
+Dervio (9 months of data, monthly blocks): MAE 1.53-1.56 m/s, weather model calibrated 1.69-1.74 m/s.
 Forecasts are calibrated. Hours with measured ≥ 4 m/s look about 1 m/s too low only because
 of regression to the mean; a single value detects about half of them (see
 [FEATURE_RELEVANCE.md](research/03_FEATURE_ENGINEERING/FEATURE_RELEVANCE.md)).
@@ -454,7 +462,8 @@ If you have data in the old `data/{area}/{spot}/` structure:
 3. **Multiple model types and feature selections**: Only the unified model on all features
 4. **Per-hour models**: Unified model with hour encoding
 5. **Complex config structure**: Simplified YAML
-6. **Old CLI**: `windmojo/cli/` directory removed
+6. **Old CLI**: the `windmojo/cli/` package (synoptic grid download) and the synoptic
+   grid experiment (Model 1b) were removed; the CLI now lives in `windmojo/cli.py`
 
 ### Simplified:
 
@@ -466,25 +475,26 @@ If you have data in the old `data/{area}/{spot}/` structure:
 ### Kept:
 
 1. **Feature engineering**: Same feature extraction
-2. **GFS data**: Same 9-point circular grid
+2. **Weather data**: Same Open-Meteo download on the 9-point circular grid
 3. **XGBoost**: Same core model
 4. **Validation approach**: Same test date strategies
 5. **Diagram format**: Same 3-way comparison plots
 
 ## Next Steps
 
-### To Complete Implementation:
+### To Complete the Spot Layout:
 
-1. **Implement download command**: Wire up GFS data fetcher
-2. **Implement features command**: Wire up feature engineering
-3. **Add examples**: More sample configs
+1. **`download` command**: wire up `windmojo.data_fetcher` for `data/spots/{spot}/`
+2. **`features` command**: wire up feature engineering
+3. **No config conversion**: one config format for all steps
 
-### For Production:
+### Forecast Quality:
 
-1. **Implement forecast command**: Real-time predictions
-2. **Add API integration**: Fetch live GFS forecasts
-3. **Deployment guide**: How to deploy trained model
-4. **Monitoring**: Track prediction quality over time
+1. **Probabilistic output**: chance of ≥ 4 m/s per hour, quantiles, gust forecast
+2. **Lead-time training**: train on the archived forecasts for tomorrow and the day after
+   (`forecasts/archive_raw/`) instead of same-day forecasts only
+3. **Verification**: compare the archived live forecasts (`forecasts/archive/`) with
+   new measurements per lead time
 
 ## Performance Summary
 
@@ -500,4 +510,5 @@ test days, which made them optimistic.
 For more details, see:
 - Configuration examples: `config/examples/`
 - Source code: `windmojo/`
-- Original research: `research/` and `docs/`
+- Research notes: `research/` (partly historical; current findings in
+  [FEATURE_RELEVANCE.md](research/03_FEATURE_ENGINEERING/FEATURE_RELEVANCE.md))

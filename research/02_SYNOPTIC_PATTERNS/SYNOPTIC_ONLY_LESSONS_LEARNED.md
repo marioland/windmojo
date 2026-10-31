@@ -1,7 +1,7 @@
 # Failed Synoptic-Only Approach
 
 **Date:** 2025-01-21
-**Status:** Discontinued
+**Status:** Discontinued (code removed 2026-10-31, still in the git history)
 **Models:** Model 1b (167 features), Model 2 (24 features)
 
 ---

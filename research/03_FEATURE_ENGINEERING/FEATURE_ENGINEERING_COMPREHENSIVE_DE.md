@@ -1,5 +1,11 @@
 # Feature Engineering für XGBoost Wind-Geschwindigkeits-Vorhersage
 
+> **Hintergrund (2026-10-31):** Die Physik und die Feature-Ideen gelten weiterhin. Die hier
+> erwartete Rangfolge (Druckgradienten 30–40 %, synoptische Indizes 20–30 %) hat sich nicht
+> bestätigt: Der Leitfaden ging davon aus, dass der Bodenwind des Wettermodells kein Input
+> ist. Gemessen trägt dieser rund die Hälfte, Druckgradienten 4–7 %. Aktueller Stand:
+> [FEATURE_RELEVANCE.md](FEATURE_RELEVANCE.md).
+
 ## Strategische Analyse: Von historischen Forecast-Daten zu trainierbaren Features
 
 **Autor:** Windmojo Contributors

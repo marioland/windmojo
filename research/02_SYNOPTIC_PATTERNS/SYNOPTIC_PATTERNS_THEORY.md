@@ -1,5 +1,10 @@
 # Synoptic Patterns Theory for Central European Wind Prediction
 
+> **Background:** the physics of large-scale patterns is valid. As model input, synoptic
+> features added nothing measurable, because the weather model's own wind already contains
+> their effect; see [FEATURE_RELEVANCE.md](../03_FEATURE_ENGINEERING/FEATURE_RELEVANCE.md).
+> The feature counts recommended here were not confirmed.
+
 **Understanding and encoding large-scale weather patterns for machine learning applications**
 
 This guide explains the synoptic-scale weather patterns that control wind in Central Europe and provides theoretical frameworks for encoding these spatial patterns into features suitable for tree-based machine learning models like XGBoost.

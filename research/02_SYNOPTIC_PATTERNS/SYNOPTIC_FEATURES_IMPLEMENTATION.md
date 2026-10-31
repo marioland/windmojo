@@ -1,6 +1,11 @@
 
 # Synoptic weather feature engineering
 
+> **Historical (2026-10-31):** design of the synoptic grid experiment (Model 1b). The
+> approach was discontinued (see [SYNOPTIC_ONLY_LESSONS_LEARNED.md](SYNOPTIC_ONLY_LESSONS_LEARNED.md))
+> and its code (synoptic downloaders, pressure centers, teleconnections, regional
+> aggregation) was removed; it remains in the git history.
+
 This summary addresses the suitability of the chosen data parameters (coverage, spatial resolution, and temporal resolution) for effectively analyzing the five key Central European wind indicators previously discussed.
 
 ---

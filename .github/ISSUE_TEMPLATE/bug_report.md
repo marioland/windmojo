@@ -1,38 +1,34 @@
 ---
 name: Bug report
-about: Create a report to help us improve
+about: Something does not work as documented
 title: ''
-labels: ''
+labels: bug
 assignees: ''
 
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+**What happened**
+A clear description of the problem.
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+**Command**
+The command you ran, e.g. `uv run python cli.py train --spot myspot`.
 
 **Expected behavior**
-A clear and concise description of what you expected to happen.
+What you expected to happen.
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+**Error message or log**
+```
+Paste the error message or the relevant part of the log here.
+```
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
+**Spot config**
+The relevant part of `data/spots/<spot>/input/config.yaml` (or the legacy config).
+Remove API keys.
 
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+**Environment**
+- OS (e.g. Ubuntu 24.04, Windows 11 with WSL, macOS 15):
+- Python version (`python --version`):
+- Windmojo version or commit (`git rev-parse --short HEAD`):
 
 **Additional context**
-Add any other context about the problem here.
+Anything else, e.g. the measurement data source or a screenshot of the forecast page.

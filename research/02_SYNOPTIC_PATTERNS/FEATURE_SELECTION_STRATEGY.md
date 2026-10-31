@@ -2,7 +2,8 @@
 
 **Date:** 2025-01-21
 **Author:** Windmojo Contributors
-**Status:** Implemented
+**Status:** Historical — implemented for Model 1b/2, discontinued; code removed
+(see [SYNOPTIC_ONLY_LESSONS_LEARNED.md](SYNOPTIC_ONLY_LESSONS_LEARNED.md))
 
 ## Problem Statement
 

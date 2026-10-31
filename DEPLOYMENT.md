@@ -61,7 +61,7 @@ Why this design:
 - **Fast and private.** Visitors only load two static files from your own domain.
 
 Exporting the XGBoost model to JavaScript/PHP (e.g. via ONNX) is possible in principle,
-but the ~160 features would have to be reimplemented outside Python — not worth it.
+but the ~380 features would have to be reimplemented outside Python — not worth it.
 
 ## 2. Prerequisites
 
