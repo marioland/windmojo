@@ -19,13 +19,18 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
+# Longest look-back of the "hours since" features. A live forecast downloads
+# 7 days of history (DEFAULT_HISTORY_DAYS in prediction/forecast.py), so longer
+# spans would differ between training and live data.
+MAX_HOURS_SINCE_EVENT = 168
+
 
 class SnowCoverFeatures:
     """
     Calculate snow cover and precipitation history features.
 
     Uses existing downloaded variables (no additional API calls):
-    - snowfall, snow_depth
+    - snowfall (cm per hour), snow_depth (m, Open-Meteo units)
     - precipitation, rain
     - temperature_2m, temperature_850hPa, temperature_700hPa
 
@@ -156,9 +161,9 @@ class SnowCoverFeatures:
         """
         # Snow on ground indicator
         if "snow_depth_center" in df.columns:
-            df["is_snow_on_ground"] = (df["snow_depth_center"] > 1.0).astype(
+            df["is_snow_on_ground"] = (df["snow_depth_center"] > 0.01).astype(
                 int
-            )  # > 1cm
+            )  # > 1 cm (snow_depth is in m)
 
         # Snow age (hours since last snowfall, only when snow present)
         if all(
@@ -184,7 +189,7 @@ class SnowCoverFeatures:
             for col in ["snow_depth_change_24h", "temperature_2m_center"]
         ):
             df["is_melting"] = (
-                (df["snow_depth_change_24h"] < -0.5)  # Losing > 0.5cm/day
+                (df["snow_depth_change_24h"] < -0.005)  # Losing > 0.5 cm/day
                 & (df["temperature_2m_center"] > 0)
             ).astype(int)
 
@@ -277,33 +282,24 @@ class SnowCoverFeatures:
         """
         Calculate hours since last time condition was True.
 
+        Capped at MAX_HOURS_SINCE_EVENT, also for hours without any prior
+        event in the data.
+
         Args:
-            condition: Boolean series
+            condition: Boolean series on a continuous hourly axis
 
         Returns:
-            Series with hours since last True value
+            Series with hours since last True value (0 at the event itself)
         """
-        # Find indices where condition is True
-        event_indices = np.where(condition)[0]
-
-        if len(event_indices) == 0:
-            # No events found, return large number
-            return pd.Series(999999, index=condition.index)
-
-        # Calculate hours since last event for each timestamp
-        hours_since = pd.Series(0, index=condition.index)
-
-        for i in range(len(condition)):
-            # Find most recent event before this index
-            prior_events = event_indices[event_indices <= i]
-            if len(prior_events) > 0:
-                last_event_idx = prior_events[-1]
-                hours_since.iloc[i] = i - last_event_idx
-            else:
-                # No prior event
-                hours_since.iloc[i] = 999999
-
-        return hours_since
+        position = pd.Series(
+            np.arange(len(condition)), index=condition.index, dtype=float
+        )
+        last_event = position.where(condition.to_numpy()).ffill()
+        return (
+            (position - last_event)
+            .fillna(MAX_HOURS_SINCE_EVENT)
+            .clip(upper=MAX_HOURS_SINCE_EVENT)
+        )
 
     def _estimate_albedo(
         self, is_snow_on_ground: pd.Series, snow_age_hours: pd.Series

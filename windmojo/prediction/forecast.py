@@ -30,22 +30,9 @@ from windmojo.units import KMH_TO_MS
 
 logger = logging.getLogger(__name__)
 
-# Longest time window among the model features (precipitation_rolling_7d_sum)
+# Longest time window among the model features (precipitation_rolling_7d_sum,
+# MAX_HOURS_SINCE_EVENT in features/snow_features.py)
 DEFAULT_HISTORY_DAYS = 7
-
-
-class ForecastFeaturePipeline(FeatureEngineeringPipeline):
-    """
-    Feature pipeline for live forecasts.
-
-    Identical to the training pipeline except for outlier capping: that clips
-    at percentiles of the data passed in, which for a single forecast week
-    would flatten exactly the strong-wind hours. Values beyond the training
-    range need no capping, the model's trees treat them like the range limits.
-    """
-
-    def _cap_outliers(self, df: pd.DataFrame, percentile: float = 0.01):
-        return df
 
 
 def apply_forecast_window(
@@ -160,7 +147,7 @@ def predict_forecast(
     logger.info(f"Forecast {today} to {end} (history from {start})")
 
     raw = download_forecast(config, start.isoformat(), end.isoformat(), client)
-    features = ForecastFeaturePipeline().transform(raw)
+    features = FeatureEngineeringPipeline().transform(raw)
     features = features[features["time"].dt.date >= today].reset_index(drop=True)
 
     missing = [f for f in trainer.feature_columns if f not in features.columns]

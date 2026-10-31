@@ -2,7 +2,9 @@
 Feature Engineering Pipeline
 
 Transforms raw GFS weather data into ML-ready features for wind forecasting.
-Implements 14-stage pipeline adapted for windmojo's new architecture:
+The same pipeline serves training and live forecasts, so it must not depend
+on the amount of data passed in (no outlier capping or other statistics over
+the whole input). Features:
 - 9-point circular grid (8 compass directions + center)
 - 5 pressure levels (1000, 850, 700, 500, 250 hPa) with full variables
 - Comprehensive atmospheric profiling with vertical gradients
@@ -25,8 +27,8 @@ class FeatureEngineeringPipeline:
     """
     Complete feature engineering pipeline for windmojo.
 
-    Transforms raw weather data through 14 sequential stages to create
-    100-300 ML features capturing spatial gradients, temporal patterns,
+    Transforms raw weather data through sequential stages to create
+    300-400 ML features capturing spatial gradients, temporal patterns,
     atmospheric physics, and snow cover indicators.
     """
 
@@ -134,20 +136,8 @@ class FeatureEngineeringPipeline:
         df = self.physics_stage.transform(df)
         logger.info(f"  → {len(df.columns)} columns after physics features")
 
-        # Drop the gap-filling rows again (before outlier capping, so they
-        # don't influence the percentiles)
+        # Drop the gap-filling rows again
         df = df[df["time"].isin(original_times)].reset_index(drop=True)
-
-        # Stage 10: Outlier capping
-        logger.info("Stage 10: Capping outliers...")
-        df = self._cap_outliers(df)
-
-        # Stage 11: Phase 1 preparation - Exclude surface center winds
-        logger.info(
-            "Stage 11: Preparing for Phase 1 (excluding surface center winds)..."
-        )
-        df = self._exclude_surface_center_winds(df)
-        logger.info(f"  → {len(df.columns)} columns after wind exclusion")
 
         logger.info(f"✓ Feature engineering complete: {len(df.columns)} total features")
 
@@ -172,72 +162,6 @@ class FeatureEngineeringPipeline:
             if col_name in df.columns:
                 df[f"{col_name}_corrected"] = df[col_name] + correction
                 logger.info(f"  Applied {correction:+.2f} correction to {col_name}")
-        return df
-
-    def _cap_outliers(self, df: pd.DataFrame, percentile: float = 0.01) -> pd.DataFrame:
-        """Cap outliers at 1st and 99th percentiles."""
-        for col in df.columns:
-            if df[col].dtype in [np.float64, np.int64]:
-                lower = df[col].quantile(percentile)
-                upper = df[col].quantile(1 - percentile)
-                df[col] = df[col].clip(lower, upper)
-        return df
-
-    def _exclude_surface_center_winds(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Exclude surface center winds for Phase 1.
-
-        Phase 1 (Model 1) should NOT include surface wind measurements at center
-        to avoid data leakage. These will be added back in Phase 2.
-
-        Excluded variables:
-        - wind_speed_10m_center
-        - wind_direction_10m_center
-        - wind_gusts_10m_center
-        - wind_speed_80m_center
-        - wind_direction_80m_center
-        - wind_speed_120m_center
-        - wind_direction_120m_center
-        - wind_speed_180m_center
-        - wind_direction_180m_center
-
-        Keep:
-        - Circle point winds (for spatial gradients)
-        - Pressure level winds (for atmospheric structure)
-        - Any derived wind features (lags, rolling stats, etc. of excluded vars are also removed)
-        """
-        excluded_patterns = [
-            "wind_speed_10m_center",
-            "wind_direction_10m_center",
-            "wind_gusts_10m_center",
-            "wind_speed_80m_center",
-            "wind_direction_80m_center",
-            "wind_speed_120m_center",
-            "wind_direction_120m_center",
-            "wind_speed_180m_center",
-            "wind_direction_180m_center",
-        ]
-
-        # Also exclude any lags or derived features from these variables
-        excluded_columns = []
-        for col in df.columns:
-            # Check if column matches any excluded pattern or is derived from it
-            for pattern in excluded_patterns:
-                if pattern in col:
-                    excluded_columns.append(col)
-                    break
-
-        if excluded_columns:
-            logger.info(
-                f"  Excluding {len(excluded_columns)} surface center wind features:"
-            )
-            for col in sorted(excluded_columns)[:10]:  # Show first 10
-                logger.info(f"    - {col}")
-            if len(excluded_columns) > 10:
-                logger.info(f"    ... and {len(excluded_columns) - 10} more")
-
-            df = df.drop(columns=excluded_columns)
-
         return df
 
 
