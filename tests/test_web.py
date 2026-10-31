@@ -9,10 +9,7 @@ import urllib.request
 import pandas as pd
 import pytest
 
-from windmojo.prediction.forecast import (
-    archive_forecast,
-    save_forecast_json,
-)
+from windmojo.prediction.forecast import archive_forecast, save_forecast_json
 from windmojo.prediction.history import (
     forecast_for_day,
     history,

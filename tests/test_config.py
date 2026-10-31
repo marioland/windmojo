@@ -135,7 +135,6 @@ class TestGetPaths:
         assert paths["measurements"] == Path("data/spots/dervio/custom/path.csv")
 
 
-
 class TestGetGridConfig:
     """Tests for get_grid_config."""
 
@@ -305,12 +304,16 @@ class TestGetValidationDates:
     """Tests for get_validation_dates."""
 
     def test_every_nth_day(self):
-        dates = [datetime.date(2025, 1, 1) + datetime.timedelta(days=i) for i in range(30)]
+        dates = [
+            datetime.date(2025, 1, 1) + datetime.timedelta(days=i) for i in range(30)
+        ]
         assert get_validation_dates(dates, every_nth=10) == dates[::10]
 
     def test_disjoint_from_test_dates(self):
         config = make_valid_config()
-        dates = [datetime.date(2025, 1, 1) + datetime.timedelta(days=i) for i in range(365)]
+        dates = [
+            datetime.date(2025, 1, 1) + datetime.timedelta(days=i) for i in range(365)
+        ]
         test_dates = set(get_test_dates(config, dates))
         train_dates = [d for d in dates if d not in test_dates]
         assert not set(get_validation_dates(train_dates)) & test_dates
