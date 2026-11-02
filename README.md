@@ -25,8 +25,8 @@ You provide:
 Windmojo then:
 - Downloads past weather forecasts for 9 points around the station from
   [Open-Meteo](https://open-meteo.com/) (free API, no key needed for non-commercial use)
-- Engineers ~380 features (pressure and cloud gradients across the grid, vertical wind
-  and temperature profile, lags, rolling statistics)
+- Engineers ~400 features (pressure, cloud and temperature gradients across the grid,
+  vertical wind and temperature profile, lags, rolling statistics)
 - Trains one XGBoost model for all hours that turns these into the local hourly mean wind
 - Validates the model on test days it has not seen and draws diagrams against the measurements
 - Produces live forecasts as JSON and as a forecast page for your computer or website
@@ -165,8 +165,11 @@ Windmojo downloads the weather model at **9 points**: the measurement location (
 and 8 points at the compass directions N, NE, E, SE, S, SW, W, NW, all at the same
 distance from the center (`grid.radius_km` in the config, default 20 km).
 
-*Perimeter points (8):* sea-level pressure and cloud cover (total, low, mid, high) — enough
-for pressure and cloud gradients across the spot.
+*Perimeter points (8):* sea-level pressure, cloud cover (total, low, mid, high) and 2 m
+temperature — enough for pressure, cloud and temperature gradients across the spot. The
+temperature gradients show land-sea or lake-land contrasts (sea and lake breezes) and cold
+air pools, whatever direction the water or the valley lies in. Raw files downloaded before
+the perimeter temperature was added simply lack these features.
 
 *Center point:* the full variable set —
 - Surface: temperature, humidity, dew point, pressure, precipitation, rain, showers,
@@ -185,11 +188,11 @@ local wind system (narrow valley vs. wide lake).
 
 ### Feature Engineering
 
-Windmojo engineers **~380 features** from the downloaded data (384 on Greifensee; list in
+Windmojo engineers **~400 features** from the downloaded data (403 on Greifensee; list in
 [`tests/feature_names.txt`](tests/feature_names.txt)):
 
 - **Spatial:** pressure gradients between the center and each perimeter point and across
-  the grid (N–S, NW–SE, ...), cloud cover gradients
+  the grid (N–S, NW–SE, ...), cloud cover and 2 m temperature gradients
 - **Vertical:** wind speed and direction shear between 10-180 m and the pressure levels,
   temperature lapse rates, bulk Richardson number (stability)
 - **Temporal:** lags (1h, 3h, 6h, 1d, 2d, 3d), rolling statistics (3h to 7d), change

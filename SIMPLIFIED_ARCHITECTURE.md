@@ -276,7 +276,7 @@ the pipeline.
    - Uses hour encoding: `hour`, `hour_sin`, `hour_cos`
    - No per-hour models needed
 
-2. **All features** (384 on Greifensee): weather model variables at the 9-point grid, spatial and
+2. **All features** (403 on Greifensee): weather model variables at the 9-point grid, spatial and
    vertical gradients, lags, rolling statistics, physics and snow indicators. A feature
    selection brought no gain in walk-forward tests on Greifensee and Dervio; the former
    packaged `spatial_heavy` list (164 features) was 0.024-0.035 m/s worse. Background:

@@ -22,13 +22,28 @@ from windmojo.features.snow_features import SnowCoverFeatures
 
 logger = logging.getLogger(__name__)
 
-# Columns removed at the end of the pipeline: absolute sea-level pressure of
-# the circle points (|r| >= 0.998 with the center, the information is in the
-# pressure_msl_grad_* features computed from them) and evapotranspiration
-# (Open-Meteo always returns 0, still present in older raw files)
-DROPPED_COLUMNS = [
-    f"pressure_msl_{point}" for point in ["n", "ne", "e", "se", "s", "sw", "w", "nw"]
-] + ["evapotranspiration_center"]
+CIRCLE_POINTS = ["n", "ne", "e", "se", "s", "sw", "w", "nw"]
+
+# Variables at all 9 grid points that get the 16 circle gradients
+CIRCLE_GRADIENT_VARIABLES = [
+    "pressure_msl",
+    "cloud_cover",
+    "cloud_cover_low",
+    "cloud_cover_mid",
+    "cloud_cover_high",
+    "temperature_2m",
+]
+
+# Columns removed at the end of the pipeline: absolute sea-level pressure and
+# 2 m temperature of the circle points (the center value plus the radial
+# gradients *_grad_center_* hold the same information; pressure |r| >= 0.998
+# with the center) and evapotranspiration (Open-Meteo always returns 0, still
+# present in older raw files)
+DROPPED_COLUMNS = (
+    [f"pressure_msl_{point}" for point in CIRCLE_POINTS]
+    + [f"temperature_2m_{point}" for point in CIRCLE_POINTS]
+    + ["evapotranspiration_center"]
+)
 
 # Columns of the feature table that are no model features (month is covered
 # by month_sin/month_cos)
@@ -270,239 +285,43 @@ class SpatialGradients:
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Calculate pressure, cloud, and other spatial gradients.
-
-        New Architecture:
-        - Pressure gradients (9-point circular grid): 16 gradients from 8 directions + center
-        - Cloud gradients (4 layers × 16 gradients each): total, low, mid, high
-        - Surface variable gradients (9-point grid)
+        Calculate the 16 circle gradients of every variable on the 9-point grid:
+        sea-level pressure, cloud cover (total, low, mid, high) and 2 m
+        temperature. Temperature gradients show land-sea or lake-land contrasts
+        and cold air pools whatever direction they lie in.
         """
-        # Pressure gradients from 9-point circular grid
-        df = self._pressure_gradients(df)
+        for var in CIRCLE_GRADIENT_VARIABLES:
+            df = self._circle_gradients(df, var)
 
-        # Cloud gradients (4 layers: total, low, mid, high)
-        df = self._cloud_gradients(df)
-
-        # Other surface variable gradients (optional, for compatibility)
-        df = self._surface_gradients(df)
+        # Temperature contrast across the circle, independent of its direction
+        circle = [f"temperature_2m_{point}" for point in CIRCLE_POINTS]
+        if all(col in df.columns for col in circle):
+            df["temperature_2m_spatial_contrast"] = df[circle].max(axis=1) - df[
+                circle
+            ].min(axis=1)
 
         return df
 
-    def _pressure_gradients(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _circle_gradients(self, df: pd.DataFrame, var: str) -> pd.DataFrame:
         """
-        Calculate comprehensive pressure gradients from 9-point circular grid.
-
-        16 gradients total:
-        - 4 cardinal pair gradients (N-S, E-W)
-        - 2 diagonal pair gradients (NE-SW, NW-SE)
-        - 8 radial gradients (center to each direction)
-        - 4 cross gradients (N-E, N-W, S-E, S-W)
+        16 gradients of one variable (each a difference, first minus second):
+        - 4 pair gradients through the center (n_s, e_w, ne_sw, nw_se)
+        - 8 radial gradients, circle point minus center (center_n, ...)
+        - 4 cross gradients (n_e, n_w, s_e, s_w)
+        Missing points are skipped (older raw files have no temperature there).
         """
-        p = "pressure_msl"  # New data uses pressure_msl from circle points
 
-        # === CARDINAL PAIR GRADIENTS (4 features) ===
+        def add_pair(name, first, second):
+            a, b = f"{var}_{first}", f"{var}_{second}"
+            if a in df.columns and b in df.columns:
+                df[f"{var}_grad_{name}"] = df[a] - df[b]
 
-        # North-South gradient
-        if f"{p}_n" in df.columns and f"{p}_s" in df.columns:
-            df["pressure_msl_grad_n_s"] = df[f"{p}_n"] - df[f"{p}_s"]
-
-        # East-West gradient
-        if f"{p}_e" in df.columns and f"{p}_w" in df.columns:
-            df["pressure_msl_grad_e_w"] = df[f"{p}_e"] - df[f"{p}_w"]
-
-        # === DIAGONAL PAIR GRADIENTS (2 features) ===
-
-        # NE-SW diagonal
-        if f"{p}_ne" in df.columns and f"{p}_sw" in df.columns:
-            df["pressure_msl_grad_ne_sw"] = df[f"{p}_ne"] - df[f"{p}_sw"]
-
-        # NW-SE diagonal
-        if f"{p}_nw" in df.columns and f"{p}_se" in df.columns:
-            df["pressure_msl_grad_nw_se"] = df[f"{p}_nw"] - df[f"{p}_se"]
-
-        # === RADIAL GRADIENTS: Center to Each Direction (8 features) ===
-
-        directions = ["n", "ne", "e", "se", "s", "sw", "w", "nw"]
-        if f"{p}_center" in df.columns:
-            for direction in directions:
-                if f"{p}_{direction}" in df.columns:
-                    df[f"pressure_msl_grad_center_{direction}"] = (
-                        df[f"{p}_{direction}"] - df[f"{p}_center"]
-                    )
-
-        # === CROSS GRADIENTS (4 features) ===
-        # These capture diagonal pressure patterns not aligned with grid
-
-        # North to East
-        if f"{p}_n" in df.columns and f"{p}_e" in df.columns:
-            df["pressure_msl_grad_n_e"] = df[f"{p}_n"] - df[f"{p}_e"]
-
-        # North to West
-        if f"{p}_n" in df.columns and f"{p}_w" in df.columns:
-            df["pressure_msl_grad_n_w"] = df[f"{p}_n"] - df[f"{p}_w"]
-
-        # South to East
-        if f"{p}_s" in df.columns and f"{p}_e" in df.columns:
-            df["pressure_msl_grad_s_e"] = df[f"{p}_s"] - df[f"{p}_e"]
-
-        # South to West
-        if f"{p}_s" in df.columns and f"{p}_w" in df.columns:
-            df["pressure_msl_grad_s_w"] = df[f"{p}_s"] - df[f"{p}_w"]
-
-        return df
-
-    def _cloud_gradients(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Calculate cloud cover gradients for all 4 layers.
-
-        Applies same 16-gradient pattern as pressure to:
-        - cloud_cover (total)
-        - cloud_cover_low
-        - cloud_cover_mid
-        - cloud_cover_high
-
-        Total: 4 layers × 16 gradients = 64 cloud gradient features
-        """
-        cloud_layers = [
-            "cloud_cover",
-            "cloud_cover_low",
-            "cloud_cover_mid",
-            "cloud_cover_high",
-        ]
-
-        for cloud_var in cloud_layers:
-            # Check if this cloud layer exists
-            if f"{cloud_var}_center" not in df.columns:
-                continue
-
-            # === CARDINAL PAIR GRADIENTS ===
-
-            # North-South
-            if f"{cloud_var}_n" in df.columns and f"{cloud_var}_s" in df.columns:
-                df[f"{cloud_var}_grad_n_s"] = (
-                    df[f"{cloud_var}_n"] - df[f"{cloud_var}_s"]
-                )
-
-            # East-West
-            if f"{cloud_var}_e" in df.columns and f"{cloud_var}_w" in df.columns:
-                df[f"{cloud_var}_grad_e_w"] = (
-                    df[f"{cloud_var}_e"] - df[f"{cloud_var}_w"]
-                )
-
-            # === DIAGONAL PAIR GRADIENTS ===
-
-            # NE-SW
-            if f"{cloud_var}_ne" in df.columns and f"{cloud_var}_sw" in df.columns:
-                df[f"{cloud_var}_grad_ne_sw"] = (
-                    df[f"{cloud_var}_ne"] - df[f"{cloud_var}_sw"]
-                )
-
-            # NW-SE
-            if f"{cloud_var}_nw" in df.columns and f"{cloud_var}_se" in df.columns:
-                df[f"{cloud_var}_grad_nw_se"] = (
-                    df[f"{cloud_var}_nw"] - df[f"{cloud_var}_se"]
-                )
-
-            # === RADIAL GRADIENTS ===
-
-            directions = ["n", "ne", "e", "se", "s", "sw", "w", "nw"]
-            for direction in directions:
-                if f"{cloud_var}_{direction}" in df.columns:
-                    df[f"{cloud_var}_grad_center_{direction}"] = (
-                        df[f"{cloud_var}_{direction}"] - df[f"{cloud_var}_center"]
-                    )
-
-            # === CROSS GRADIENTS ===
-
-            if f"{cloud_var}_n" in df.columns and f"{cloud_var}_e" in df.columns:
-                df[f"{cloud_var}_grad_n_e"] = (
-                    df[f"{cloud_var}_n"] - df[f"{cloud_var}_e"]
-                )
-
-            if f"{cloud_var}_n" in df.columns and f"{cloud_var}_w" in df.columns:
-                df[f"{cloud_var}_grad_n_w"] = (
-                    df[f"{cloud_var}_n"] - df[f"{cloud_var}_w"]
-                )
-
-            if f"{cloud_var}_s" in df.columns and f"{cloud_var}_e" in df.columns:
-                df[f"{cloud_var}_grad_s_e"] = (
-                    df[f"{cloud_var}_s"] - df[f"{cloud_var}_e"]
-                )
-
-            if f"{cloud_var}_s" in df.columns and f"{cloud_var}_w" in df.columns:
-                df[f"{cloud_var}_grad_s_w"] = (
-                    df[f"{cloud_var}_s"] - df[f"{cloud_var}_w"]
-                )
-
-        return df
-
-    def _surface_gradients(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Calculate gradients for surface variables on 9-point grid (compatibility)."""
-        # Note: Most surface gradients now handled by cloud_gradients
-        # This is kept for any additional surface variables if needed
-        surface_vars = [
-            "temperature_2m",
-            "shortwave_radiation",
-            "soil_temperature_0cm",
-            "boundary_layer_height",
-        ]
-
-        for var in surface_vars:
-            # Check if variable exists in grid
-            if f"{var}_center" not in df.columns:
-                continue
-
-            # === CARDINAL DIRECTIONS (N, S, E, W) ===
-
-            # North-South gradient
-            if f"{var}_n" in df.columns and f"{var}_s" in df.columns:
-                df[f"{var}_grad_ns"] = df[f"{var}_n"] - df[f"{var}_s"]
-
-            # North gradient (from center)
-            if f"{var}_n" in df.columns:
-                df[f"{var}_grad_n"] = df[f"{var}_n"] - df[f"{var}_center"]
-
-            # South gradient (from center)
-            if f"{var}_s" in df.columns:
-                df[f"{var}_grad_s"] = df[f"{var}_center"] - df[f"{var}_s"]
-
-            # East-West gradient
-            if f"{var}_e" in df.columns and f"{var}_w" in df.columns:
-                df[f"{var}_grad_ew"] = df[f"{var}_e"] - df[f"{var}_w"]
-
-            # East gradient (from center)
-            if f"{var}_e" in df.columns:
-                df[f"{var}_grad_e"] = df[f"{var}_e"] - df[f"{var}_center"]
-
-            # West gradient (from center)
-            if f"{var}_w" in df.columns:
-                df[f"{var}_grad_w"] = df[f"{var}_center"] - df[f"{var}_w"]
-
-            # === DIAGONAL DIRECTIONS (NE, SE, SW, NW) ===
-
-            # NE-SW diagonal gradient
-            if f"{var}_ne" in df.columns and f"{var}_sw" in df.columns:
-                df[f"{var}_grad_ne_sw"] = df[f"{var}_ne"] - df[f"{var}_sw"]
-
-            # Northeast gradient (from center)
-            if f"{var}_ne" in df.columns:
-                df[f"{var}_grad_ne"] = df[f"{var}_ne"] - df[f"{var}_center"]
-
-            # Southwest gradient (from center)
-            if f"{var}_sw" in df.columns:
-                df[f"{var}_grad_sw"] = df[f"{var}_center"] - df[f"{var}_sw"]
-
-            # NW-SE diagonal gradient
-            if f"{var}_nw" in df.columns and f"{var}_se" in df.columns:
-                df[f"{var}_grad_nw_se"] = df[f"{var}_nw"] - df[f"{var}_se"]
-
-            # Northwest gradient (from center)
-            if f"{var}_nw" in df.columns:
-                df[f"{var}_grad_nw"] = df[f"{var}_nw"] - df[f"{var}_center"]
-
-            # Southeast gradient (from center)
-            if f"{var}_se" in df.columns:
-                df[f"{var}_grad_se"] = df[f"{var}_center"] - df[f"{var}_se"]
+        for first, second in [("n", "s"), ("e", "w"), ("ne", "sw"), ("nw", "se")]:
+            add_pair(f"{first}_{second}", first, second)
+        for point in CIRCLE_POINTS:
+            add_pair(f"center_{point}", point, "center")
+        for first, second in [("n", "e"), ("n", "w"), ("s", "e"), ("s", "w")]:
+            add_pair(f"{first}_{second}", first, second)
 
         return df
 
@@ -762,42 +581,21 @@ class InteractionFeatures:
         Phase 1 insight: Individual gradients (N-S, E-W) perform well,
         but magnitude combines them for stronger signal.
         """
-        # Pressure gradient magnitude
-        if all(
-            col in df.columns
-            for col in ["pressure_msl_grad_n_s", "pressure_msl_grad_e_w"]
-        ):
-            df["pressure_msl_grad_magnitude"] = np.sqrt(
-                df["pressure_msl_grad_n_s"] ** 2 + df["pressure_msl_grad_e_w"] ** 2
-            )
-            # Gradient direction (in degrees, 0=N, 90=E, 180=S, 270=W)
-            df["pressure_msl_grad_direction"] = (
-                np.degrees(
-                    np.arctan2(df["pressure_msl_grad_e_w"], df["pressure_msl_grad_n_s"])
-                )
-                % 360
-            )
-
-        # Cloud gradient magnitudes (all 4 layers)
-        cloud_layers = [
-            "cloud_cover",
-            "cloud_cover_low",
-            "cloud_cover_mid",
-            "cloud_cover_high",
-        ]
-        for cloud in cloud_layers:
-            grad_ns = f"{cloud}_grad_n_s"
-            grad_ew = f"{cloud}_grad_e_w"
+        # Gradient magnitude and direction (in degrees, 0=N, 90=E, 180=S, 270=W)
+        # of pressure, the 4 cloud layers and temperature
+        for var in CIRCLE_GRADIENT_VARIABLES:
+            grad_ns = f"{var}_grad_n_s"
+            grad_ew = f"{var}_grad_e_w"
             if all(col in df.columns for col in [grad_ns, grad_ew]):
-                df[f"{cloud}_grad_magnitude"] = np.sqrt(
+                df[f"{var}_grad_magnitude"] = np.sqrt(
                     df[grad_ns] ** 2 + df[grad_ew] ** 2
                 )
-                df[f"{cloud}_grad_direction"] = (
+                df[f"{var}_grad_direction"] = (
                     np.degrees(np.arctan2(df[grad_ew], df[grad_ns])) % 360
                 )
 
         # Gradient asymmetry (total gradient activity, all directions)
-        for cloud in cloud_layers:
+        for cloud in [v for v in CIRCLE_GRADIENT_VARIABLES if v.startswith("cloud")]:
             grads = [
                 f"{cloud}_grad_n_s",
                 f"{cloud}_grad_e_w",

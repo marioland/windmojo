@@ -98,6 +98,33 @@ class TestNoOutlierCapping:
         assert value.item() == 150.0
 
 
+class TestCircleTemperature:
+    def test_gradients_point_minus_center(self, raw):
+        warm_south = raw.copy()
+        warm_south["temperature_2m"] = 10.0
+        warm_south.loc[warm_south["location"] == "s", "temperature_2m"] = 13.0
+        features = FeatureEngineeringPipeline().transform(warm_south)
+        assert (features["temperature_2m_grad_center_s"] == 3.0).all()
+        assert (features["temperature_2m_grad_center_n"] == 0.0).all()
+        assert (features["temperature_2m_grad_n_s"] == -3.0).all()
+        assert (features["temperature_2m_spatial_contrast"] == 3.0).all()
+        assert np.allclose(features["temperature_2m_grad_direction"], 180.0)
+
+    def test_raw_files_without_circle_temperature(self, raw, features):
+        """Raw files downloaded before circle temperatures existed still work."""
+        old_raw = raw.copy()
+        old_raw.loc[old_raw["location"] != "center", "temperature_2m"] = np.nan
+        old = FeatureEngineeringPipeline().transform(old_raw)
+        new_columns = [
+            c for c in features.columns if c.startswith("temperature_2m_grad")
+        ]
+        assert len(new_columns) == 18
+        assert not set(new_columns + ["temperature_2m_spatial_contrast"]) & set(
+            old.columns
+        )
+        pd.testing.assert_frame_equal(old, features[old.columns])
+
+
 class TestSurfaceCenterWinds:
     def test_center_winds_are_features(self, features):
         for column in [
@@ -179,7 +206,11 @@ REMOVED_FEATURES = [
     "surface_is_fresh_snow",
     "is_old_snow",
     "surface_is_old_snow",
-] + [f"pressure_msl_{point}" for point in LOCATIONS[1:]]
+] + [
+    f"{var}_{point}"
+    for var in ["pressure_msl", "temperature_2m"]
+    for point in LOCATIONS[1:]
+]
 
 FEATURE_NAMES_FILE = Path(__file__).parent / "feature_names.txt"
 

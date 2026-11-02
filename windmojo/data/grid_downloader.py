@@ -28,13 +28,14 @@ logger = logging.getLogger(__name__)
 # Based on Open-Meteo Historical Forecast API documentation
 
 # Circle/Grid variables: fetched at 8 circle points (compass directions, excluding center)
-# These are the synoptic-scale variables for spatial patterns
+# These are the variables for spatial patterns (gradients across the spot)
 CIRCLE_VARIABLES = [
     "pressure_msl",  # Sea Level Pressure
     "cloud_cover",  # Cloud Cover Total
     "cloud_cover_low",  # Cloud Cover Low
     "cloud_cover_mid",  # Cloud Cover Mid
     "cloud_cover_high",  # Cloud Cover High
+    "temperature_2m",  # Land-sea / lake-land contrasts, cold air pools
 ]
 
 # Center-only variables: ALL available variables from Open-Meteo API
@@ -194,7 +195,7 @@ class DataDownloader:
         Download data for a single date across all grid locations.
 
         New Architecture:
-        - Circle points (8 compass directions): Only synoptic variables (pressure, clouds)
+        - Circle points (8 compass directions): pressure, clouds and 2 m temperature
         - Center point: ALL available variables from Open-Meteo API
 
         Args:
@@ -247,7 +248,7 @@ class DataDownloader:
         self, variables: List[str], date: str, mode: str
     ) -> Optional[pd.DataFrame]:
         """
-        Fetch synoptic variables for 8 circle points (compass directions).
+        Fetch the circle variables for 8 circle points (compass directions).
 
         Excludes center point - fetches only the 8 surrounding points.
 

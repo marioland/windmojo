@@ -182,6 +182,25 @@ with ≥ 4 m/s and 4 % of the summer error. Candidate inputs: CAPE, lifted index
 convective inhibition (available from Open-Meteo, not downloaded yet) and precipitation at
 the circle points (an approaching cell).
 
+## Temperature at the circle points
+
+The 8 circle points first had only pressure and clouds, so a land-sea or lake-land
+temperature contrast (the driver of sea and lake breezes) was visible only indirectly. Since
+November 2026 the 2 m temperature is downloaded there as well and gives 19 features: the 16
+circle gradients, their magnitude and direction, and the contrast between the warmest and
+the coldest circle point (independent of where the water lies). Paired walk-forward test,
+3 seeds, all other features unchanged:
+
+| Spot | MAE | MAE at measured ≥ 4 m/s | Gain share |
+|---|---|---|---|
+| Greifensee, 15 quarters | −0.001 ± 0.002 | −0.001 ± 0.006 | 2.9 % |
+| Dervio, 5 months walk-forward / 9 months blocked CV | ±0.002 | +0.02 ± 0.02 (n.s.) | 5 % |
+
+Neutral at both lakes: their circle points lie on hills and mountains (Dervio 750–1570 m),
+so the gradients mostly show the temperature drop with height. They stay in the pipeline for
+coastal spots, where the land-sea contrast is the main driver; this is untested for lack of
+coastal measurements.
+
 ## Related
 
 - [SPATIAL_HEAVY_SELECTION.md](SPATIAL_HEAVY_SELECTION.md) – the former packaged selection (superseded)

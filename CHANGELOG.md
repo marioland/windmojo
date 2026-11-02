@@ -8,6 +8,10 @@
 - Training and live forecasts get identical features (no outlier capping, look-backs of
   at most 7 days); features that can never help were removed
 - Weather model surface winds (10-180 m) are features again
+- 2 m temperature at the 8 perimeter points, with 19 gradient features (land-sea and
+  lake-land contrasts, cold air pools, in any direction). Neutral on Greifensee and Dervio,
+  meant for coastal spots. Raw files downloaded earlier lack them; re-download or backfill
+  the perimeter temperature before retraining
 - Early stopping on validation days instead of the test days
 - Timing-tolerant loss: a wind peak forecast up to ±3 h off is not punished twice
 - `cli.py train --until` keeps later days unseen
